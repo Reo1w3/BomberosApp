@@ -1,0 +1,43 @@
+import mysql.connector
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# 1. Conexión a Firebase
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db_firestore = firestore.client()
+
+# 2. Conexión a tu MariaDB local (Puerto 3307)
+try:
+    db_maria = mysql.connector.connect(
+        host="localhost",
+        port=3307,
+        user="root",
+        password="1234",
+        database="bomberos_db"
+    )
+    cursor = db_maria.cursor(dictionary=True)
+
+    def migrar_tabla(nombre_tabla):
+        print(f"Migrando {nombre_tabla}...")
+        cursor.execute(f"SELECT * FROM {nombre_tabla}")
+        filas = cursor.fetchall()
+        
+        for fila in filas:
+            # Usamos el id o codigo como nombre del documento
+            doc_id = str(fila.get('codigo_personal') or fila.get('id'))
+            db_firestore.collection(nombre_tabla).document(doc_id).set(fila)
+        
+        print(f"✅ ¡{len(filas)} registros migrados de {nombre_tabla}!")
+
+    # Migrar las tablas principales
+    migrar_tabla("personal")
+    # migrar_tabla("acompanante") # Descomenta si tienes estas tablas
+    # migrar_tabla("destino_traslado")
+
+except Exception as e:
+    print(f"❌ Error: {e}")
+finally:
+    if 'db_maria' in locals():
+        cursor.close()
+        db_maria.close()
