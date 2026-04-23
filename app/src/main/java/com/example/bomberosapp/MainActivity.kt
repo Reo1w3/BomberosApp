@@ -53,11 +53,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inicialización manual de Firebase (Elimina la dependencia de google-services.json)
+        // Inicialización manual de Firebase (Cargando la API Key de forma segura desde BuildConfig)
         val options = FirebaseOptions.Builder()
             .setProjectId("bomberosapp-74af6")
             .setApplicationId("1:762131751015:android:f78cdbab6aee7ed1c874c2")
-            .setApiKey("AIzaSyBv106hF5diNuVzei_aobZ6ieh9OVfZEEs")
+            .setApiKey(BuildConfig.FIREBASE_API_KEY)
             .setStorageBucket("bomberosapp-74af6.firebasestorage.app")
             .build()
 
