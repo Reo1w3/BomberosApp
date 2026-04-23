@@ -72,12 +72,6 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf(Screen.Login) }
                 val loginState = viewModel.loginState
 
-                LaunchedEffect(loginState) {
-                    if (loginState is LoginUIState.Success) {
-                        currentScreen = Screen.Home
-                    }
-                }
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.White
