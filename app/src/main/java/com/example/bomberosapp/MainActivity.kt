@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -50,6 +52,19 @@ enum class Screen { Login, Home, AdminHome }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Inicialización manual de Firebase (Elimina la dependencia de google-services.json)
+        val options = FirebaseOptions.Builder()
+            .setProjectId("bomberosapp-74af6")
+            .setApplicationId("1:762131751015:android:f78cdbab6aee7ed1c874c2")
+            .setApiKey("AIzaSyBv106hF5diNuVzei_aobZ6ieh9OVfZEEs")
+            .setStorageBucket("bomberosapp-74af6.firebasestorage.app")
+            .build()
+
+        if (FirebaseApp.getApps(this).isEmpty()) {
+            FirebaseApp.initializeApp(this, options)
+        }
+
         enableEdgeToEdge()
         setContent {
             BomberosAppTheme {
@@ -79,10 +94,12 @@ class MainActivity : ComponentActivity() {
                             Box {
                                 BomberosLoginScreen(
                                     onLoginClick = { usuario, pass ->
-                                        if (usuario == "admin" && pass == "admin") {
-                                            currentScreen = Screen.AdminHome
-                                        } else {
-                                            viewModel.login(usuario, pass) {}
+                                        viewModel.login(usuario, pass) {
+                                            if (usuario == "0") {
+                                                currentScreen = Screen.AdminHome
+                                            } else {
+                                                currentScreen = Screen.Home
+                                            }
                                         }
                                     }
                                 )

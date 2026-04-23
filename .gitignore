@@ -1,12 +1,7 @@
+# Android Studio / IntelliJ
 *.iml
 .gradle
 /local.properties
-serviceAccountKey.json
-google-services.json
-bomberos_db.sql
-migracion_bomberos.py
-*.jks
-*.keystore
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -18,10 +13,22 @@ migracion_bomberos.py
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# Secrets and sensitive files
 serviceAccountKey.json
 google-services.json
-bomberos_db.sql
-migracion_bomberos.py
 *.jks
 *.keystore
+local.properties
+
+# Database and Scripts
+bomberos_db.sql
+migracion_bomberos.py
+firebase_seed.py
+firebase_check.py
+
+# Built artifacts
+*.apk
+*.aar
+*.ap_
+*.aab
