@@ -47,7 +47,7 @@ import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
 import com.example.bomberosapp.ui.theme.BomberosAppTheme
 
-enum class Screen { Login, Home, AdminHome }
+enum class Screen { Login, Home, AdminHome, NuevaEmergencia }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,10 +76,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color.White
                 ) {
-                    if (currentScreen == Screen.Home || currentScreen == Screen.AdminHome) {
+                    if (currentScreen == Screen.Home || currentScreen == Screen.AdminHome || currentScreen == Screen.NuevaEmergencia) {
                         BackHandler {
-                            currentScreen = Screen.Login
-                            viewModel.resetState()
+                            currentScreen = if (currentScreen == Screen.NuevaEmergencia) Screen.Home else Screen.Login
+                            if (currentScreen == Screen.Login) viewModel.resetState()
                         }
                     }
 
@@ -119,12 +119,20 @@ class MainActivity : ComponentActivity() {
                             onHomeClick = {
                                 currentScreen = Screen.Login
                                 viewModel.resetState()
+                            },
+                            onNuevaEmergenciaClick = {
+                                currentScreen = Screen.NuevaEmergencia
                             }
                         )
                         Screen.AdminHome -> BomberosAdminHomeScreen(
                             onHomeClick = {
                                 currentScreen = Screen.Login
                                 viewModel.resetState()
+                            }
+                        )
+                        Screen.NuevaEmergencia -> NuevaEmergenciaScreen(
+                            onVolverClick = {
+                                currentScreen = Screen.Home
                             }
                         )
                     }
@@ -223,7 +231,10 @@ fun BomberosLoginScreen(onLoginClick: (String, String) -> Unit) {
 }
 
 @Composable
-fun BomberosHomeScreen(onHomeClick: () -> Unit) {
+fun BomberosHomeScreen(
+    onHomeClick: () -> Unit,
+    onNuevaEmergenciaClick: () -> Unit
+) {
     val condensedTextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Black,
@@ -258,7 +269,7 @@ fun BomberosHomeScreen(onHomeClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Button(
-                onClick = { },
+                onClick = onNuevaEmergenciaClick,
                 modifier = Modifier.fillMaxWidth(0.82f).height(85.dp),
                 shape = RoundedCornerShape(15.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613)),
@@ -505,5 +516,93 @@ fun LoginInputField(label: String, icon: ImageVector, value: String, onValueChan
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             singleLine = true
         )
+    }
+}
+
+@Composable
+fun NuevaEmergenciaScreen(onVolverClick: () -> Unit) {
+    var horaSalida by remember { mutableStateOf("") }
+    var telefonoSolicitante by remember { mutableStateOf("") }
+    var nombreSolicitante by remember { mutableStateOf("") }
+    var tipoServicio by remember { mutableStateOf("") }
+    var direccionEmergencia by remember { mutableStateOf("") }
+    var nombrePaciente by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "NUEVA EMERGENCIA",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black,
+            color = Color(0xFFE30613)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = horaSalida,
+            onValueChange = { horaSalida = it },
+            label = { Text("Hora de salida") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = telefonoSolicitante,
+            onValueChange = { telefonoSolicitante = it },
+            label = { Text("Teléfono del solicitante") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = nombreSolicitante,
+            onValueChange = { nombreSolicitante = it },
+            label = { Text("Nombre del solicitante") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = tipoServicio,
+            onValueChange = { tipoServicio = it },
+            label = { Text("Tipo de servicio") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = direccionEmergencia,
+            onValueChange = { direccionEmergencia = it },
+            label = { Text("Dirección de la emergencia") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = nombrePaciente,
+            onValueChange = { nombrePaciente = it },
+            label = { Text("Nombre del paciente") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = onVolverClick,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
+        ) {
+            Text("VOLVER", color = Color.White)
+        }
     }
 }
