@@ -77,30 +77,24 @@ fun PacienteAcompananteScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(rojoBomberos)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = null,
-                modifier = Modifier.size(52.dp),
+                modifier = Modifier.size(75.dp),
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Text(
-                text = "PACIENTE Y ACOMPAÑANTE",
+                text = "Reporte de ambulancia",
                 color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 6.dp),
-                textAlign = TextAlign.Center
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
-
-            Spacer(modifier = Modifier.width(52.dp))
         }
 
         Column(
@@ -270,13 +264,14 @@ fun PacienteAcompananteScreen(
                     )
                 }
 
-                Button(
-                    onClick = onSiguienteClick,
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = rojoBomberos),
-                    shape = RoundedCornerShape(14.dp)
+                        .fillMaxWidth()
+                        .background(
+                            color = rojoBomberos,
+                            shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     Text(
                         text = "SIGUIENTE",
