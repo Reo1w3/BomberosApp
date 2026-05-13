@@ -1,5 +1,7 @@
 package com.example.bomberosapp
 
+import com.example.bomberosapp.ui.PacienteAcompananteScreen
+import com.example.bomberosapp.ui.NuevaEmergenciaScreen
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -47,7 +49,7 @@ import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
 import com.example.bomberosapp.ui.theme.BomberosAppTheme
 
-enum class Screen { Login, Home, AdminHome, NuevaEmergencia }
+enum class Screen { Login, Home, AdminHome, NuevaEmergencia, PacienteAcompanante }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,6 +135,17 @@ class MainActivity : ComponentActivity() {
                         Screen.NuevaEmergencia -> NuevaEmergenciaScreen(
                             onVolverClick = {
                                 currentScreen = Screen.Home
+                            },
+                            onSiguienteClick = {
+                                currentScreen = Screen.PacienteAcompanante
+                            }
+                        )
+
+                        Screen.PacienteAcompanante -> PacienteAcompananteScreen(
+                            onVolverClick = {
+                                currentScreen = Screen.NuevaEmergencia
+                            },
+                            onSiguienteClick = {
                             }
                         )
                     }
@@ -519,90 +532,4 @@ fun LoginInputField(label: String, icon: ImageVector, value: String, onValueChan
     }
 }
 
-@Composable
-fun NuevaEmergenciaScreen(onVolverClick: () -> Unit) {
-    var horaSalida by remember { mutableStateOf("") }
-    var telefonoSolicitante by remember { mutableStateOf("") }
-    var nombreSolicitante by remember { mutableStateOf("") }
-    var tipoServicio by remember { mutableStateOf("") }
-    var direccionEmergencia by remember { mutableStateOf("") }
-    var nombrePaciente by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "NUEVA EMERGENCIA",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFFE30613)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = horaSalida,
-            onValueChange = { horaSalida = it },
-            label = { Text("Hora de salida") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = telefonoSolicitante,
-            onValueChange = { telefonoSolicitante = it },
-            label = { Text("Teléfono del solicitante") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = nombreSolicitante,
-            onValueChange = { nombreSolicitante = it },
-            label = { Text("Nombre del solicitante") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = tipoServicio,
-            onValueChange = { tipoServicio = it },
-            label = { Text("Tipo de servicio") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = direccionEmergencia,
-            onValueChange = { direccionEmergencia = it },
-            label = { Text("Dirección de la emergencia") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        OutlinedTextField(
-            value = nombrePaciente,
-            onValueChange = { nombrePaciente = it },
-            label = { Text("Nombre del paciente") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Button(
-            onClick = onVolverClick,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
-        ) {
-            Text("VOLVER", color = Color.White)
-        }
-    }
-}
