@@ -49,6 +49,8 @@ import com.example.bomberosapp.ui.EmergencyViewModel
 import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
 import com.example.bomberosapp.ui.components.SignatureDialog
+import com.example.bomberosapp.ui.components.OsmMapView
+import org.osmdroid.util.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -244,6 +246,9 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
     var signaturePers by remember { mutableStateOf("") }
     
     var activeSignatureTarget by remember { mutableStateOf<String?>(null) }
+    var showMapDialog by remember { mutableStateOf(false) }
+    var selectedLocation by remember { mutableStateOf(GeoPoint(14.6349, -90.5069)) }
+    
     val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -308,30 +313,36 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
                     FieldInput(
                         value = f["dirE"] ?: "",
                         isLong = true,
-                        placeholder = "Toca acá para escribir o el ícono de ubicación.",
+                        placeholder = "Toca acá para escribir o usa el ícono de mapa.",
                         onValue = { f["dirE"] = it },
                         trailingIcon = {
-                            IconButton(onClick = {
-                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
-                                    try {
-                                        val location = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) 
-                                            ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                                        
-                                        if (location != null) {
-                                            f["dirE"] = "${location.latitude}, ${location.longitude}"
-                                            Toast.makeText(context, "Ubicación obtenida", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "No se pudo obtener la ubicación. Active el GPS.", Toast.LENGTH_LONG).show()
+                            Row {
+                                IconButton(onClick = {
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
+                                        try {
+                                            val location = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) 
+                                                ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                                            
+                                            if (location != null) {
+                                                f["dirE"] = "${location.latitude}, ${location.longitude}"
+                                                selectedLocation = GeoPoint(location.latitude, location.longitude)
+                                                Toast.makeText(context, "Ubicación obtenida", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "No se pudo obtener la ubicación. Active el GPS.", Toast.LENGTH_LONG).show()
+                                            }
+                                        } catch (e: SecurityException) {
+                                            Toast.makeText(context, "Error de permisos", Toast.LENGTH_SHORT).show()
                                         }
-                                    } catch (e: SecurityException) {
-                                        Toast.makeText(context, "Error de permisos", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                                     }
-                                } else {
-                                    permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                }) {
+                                    Icon(Icons.Default.LocationOn, "Ubicación actual")
                                 }
-                            }) {
-                                Icon(Icons.Default.LocationOn, "Ubicación actual")
+                                IconButton(onClick = { showMapDialog = true }) {
+                                    Icon(Icons.Default.Map, "Abrir mapa")
+                                }
                             }
                         }
                     )
@@ -446,6 +457,54 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
                 }
                 activeSignatureTarget = null
             }
+        }
+
+        if (showMapDialog) {
+            AlertDialog(
+                onDismissRequest = { showMapDialog = false },
+                confirmButton = {
+                    Button(onClick = {
+                        f["dirE"] = "${selectedLocation.latitude}, ${selectedLocation.longitude}"
+                        showMapDialog = false
+                    }) {
+                        Text("SELECCIONAR UBICACIÓN")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showMapDialog = false }) {
+                        Text("CANCELAR")
+                    }
+                },
+                text = {
+                    Box(Modifier.fillMaxWidth().height(400.dp)) {
+                        OsmMapView(
+                            center = selectedLocation,
+                            onMapReady = { map ->
+                                map.setOnClickListener {
+                                    // El mapa de osmdroid maneja clics internamente
+                                }
+                                // Listener para capturar el centro cuando el mapa se mueve
+                                map.addMapListener(object : org.osmdroid.events.MapListener {
+                                    override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
+                                        val center = map.mapCenter as GeoPoint
+                                        selectedLocation = center
+                                        return true
+                                    }
+                                    override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean = true
+                                })
+                            }
+                        )
+                        // Icono de mira en el centro
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.align(Alignment.Center).size(32.dp),
+                            tint = Color.Red
+                        )
+                    }
+                },
+                title = { Text("Mueve el mapa para ubicar") }
+            )
         }
     }
 }

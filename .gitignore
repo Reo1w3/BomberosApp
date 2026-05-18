@@ -2,31 +2,27 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+/.idea/
 /build
 /captures
 .externalNativeBuild
 .cxx
+.DS_Store
 
-# Secrets and sensitive files
-serviceAccountKey.json
+# Secrets and Environment
+.env
+.env.*
+!.env.example
 google-services.json
+serviceAccountKey.json
 *.jks
 *.keystore
 local.properties
 
 # Database and Scripts
-bomberos_db.sql
+*.sql
 migracion_bomberos.py
-firebase_seed.py
-firebase_check.py
-firebase_fix_data.py
+firebase_*.py
 
 # Python
 __pycache__/
