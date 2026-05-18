@@ -26,6 +26,16 @@ bomberos_db.sql
 migracion_bomberos.py
 firebase_seed.py
 firebase_check.py
+firebase_fix_data.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
 
 # Built artifacts
 *.apk

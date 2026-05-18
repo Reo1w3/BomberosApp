@@ -55,16 +55,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inicialización manual de Firebase (Cargando la API Key de forma segura desde BuildConfig)
-        val options = FirebaseOptions.Builder()
-            .setProjectId("bomberosapp-74af6")
-            .setApplicationId("1:762131751015:android:f78cdbab6aee7ed1c874c2")
-            .setApiKey(BuildConfig.FIREBASE_API_KEY)
-            .setStorageBucket("bomberosapp-74af6.firebasestorage.app")
-            .build()
+        // Inicialización manual de Firebase con seguridad
+        val apiKey = BuildConfig.FIREBASE_API_KEY
+        if (apiKey.isEmpty()) {
+            Toast.makeText(this, "ERROR: Falta FIREBASE_API_KEY en local.properties", Toast.LENGTH_LONG).show()
+        } else {
+            val options = FirebaseOptions.Builder()
+                .setProjectId("bomberosapp-74af6")
+                .setApplicationId("1:762131751015:android:f78cdbab6aee7ed1c874c2")
+                .setApiKey(apiKey)
+                .setStorageBucket("bomberosapp-74af6.firebasestorage.app")
+                .build()
 
-        if (FirebaseApp.getApps(this).isEmpty()) {
-            FirebaseApp.initializeApp(this, options)
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                FirebaseApp.initializeApp(this, options)
+            }
         }
 
         enableEdgeToEdge()
