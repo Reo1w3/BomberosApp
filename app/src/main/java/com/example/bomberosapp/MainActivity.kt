@@ -1,5 +1,5 @@
 package com.example.bomberosapp
-
+import com.example.bomberosapp.ui.NuevoElementoScreen
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
@@ -46,8 +46,11 @@ import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.ui.AdminViewModel
 import com.example.bomberosapp.ui.EmergencyUIState
 import com.example.bomberosapp.ui.EmergencyViewModel
+import com.example.bomberosapp.ui.FuerzaActivaScreen
 import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
+import com.example.bomberosapp.ui.PilotoScreen
+import com.example.bomberosapp.ui.SeleccionTipoElementoScreen
 import com.example.bomberosapp.ui.components.SignatureDialog
 import java.text.SimpleDateFormat
 import java.util.*
@@ -90,11 +93,35 @@ class MainActivity : ComponentActivity() {
                                 )
                                 "admin_home" -> AdminHomeScreen(
                                     onList = { currentScreen = "admin_list" },
+                                    onVerFuerzaActiva = { currentScreen = "fuerza_activa" },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
                                     }
                                 )
+
+                                "fuerza_activa" -> FuerzaActivaScreen(
+                                    onAgregarNuevoElemento = { currentScreen = "nuevo_elemento" },
+                                    onVolver = { currentScreen = "admin_home" }
+                                )
+                                "nuevo_elemento" -> NuevoElementoScreen(
+                                    onContinuarClick = { currentScreen = "seleccion_tipo_elemento" },
+                                    onVolverClick = { currentScreen = "fuerza_activa" }
+                                )
+                                "seleccion_tipo_elemento" -> SeleccionTipoElementoScreen(
+                                    onParamedicoClick = { currentScreen = "paramedico" },
+                                    onPilotoClick = { currentScreen = "piloto" },
+                                    onVolverClick = { currentScreen = "nuevo_elemento" }
+                                )
+                                "piloto" -> PilotoScreen(
+                                    onGuardarClick = { _, _, _, _ ->
+                                    },
+                                    onVolverClick = { currentScreen = "seleccion_tipo_elemento" }
+                                )
+
+                                "piloto" -> {
+                                    Text("Pantalla de Piloto")
+                                }
                                 "admin_list" -> {
                                     LaunchedEffect(Unit) { adminViewModel.startObserving() }
                                     AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
@@ -592,13 +619,20 @@ fun BottomNavBar(currentScreen: String, onHome: () -> Unit, onProfile: () -> Uni
 }
 
 @Composable
-fun AdminHomeScreen(onList: () -> Unit, onLogout: () -> Unit) {
+fun AdminHomeScreen(
+    onList: () -> Unit,
+    onVerFuerzaActiva: () -> Unit,
+    onLogout: () -> Unit
+) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(title = "PANEL DE OFICIAL", onLogout = onLogout)
         Column(Modifier.padding(24.dp)) {
             MainButton("VER TODOS\nLOS REPORTES", Icons.Default.Assignment, onList)
+            Spacer(modifier = Modifier.height(12.dp))
+            MainButton("VER FUERZA\nACTIVA", Icons.Default.Group, onVerFuerzaActiva)
         }
     }
+
 }
 
 @Composable
