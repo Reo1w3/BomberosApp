@@ -14,20 +14,19 @@ class LoginViewModel(private val repository: UserRepository = UserRepository()) 
         private set
 
     fun login(usuario: String, pass: String, onLoginSuccess: () -> Unit) {
-        val codigo = usuario.toIntOrNull()
-        if (codigo == null) {
-            loginState = LoginUIState.Error("Usuario inválido")
+        if (usuario.isBlank() || pass.isBlank()) {
+            loginState = LoginUIState.Error("Complete todos los campos")
             return
         }
 
         loginState = LoginUIState.Loading
         viewModelScope.launch {
-            val success = repository.login(codigo, pass)
+            val success = repository.login(usuario, pass)
             if (success) {
                 loginState = LoginUIState.Success
                 onLoginSuccess()
             } else {
-                loginState = LoginUIState.Error("Credenciales Inválidas")
+                loginState = LoginUIState.Error("Credenciales Inválidas o Error de Conexión")
             }
         }
     }

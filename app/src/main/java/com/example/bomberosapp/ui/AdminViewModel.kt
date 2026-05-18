@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.bomberosapp.data.model.Emergency
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.bomberosapp.data.network.FirebaseClient
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +15,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class AdminViewModel : ViewModel() {
-    private val db = FirebaseFirestore.getInstance()
+    private val db = FirebaseClient.db
+    private var isObserving = false
 
     var emergencies by mutableStateOf<List<Emergency>>(emptyList())
         private set
@@ -23,13 +24,16 @@ class AdminViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
         private set
 
-    init {
+    fun startObserving() {
+        if (isObserving) return
+        isObserving = true
         observeEmergencies()
     }
 
     private fun observeEmergencies() {
         isLoading = true
         viewModelScope.launch {
+            FirebaseClient.connect()
             getEmergenciesFlow().collectLatest { list ->
                 emergencies = list
                 isLoading = false
@@ -45,7 +49,13 @@ class AdminViewModel : ViewModel() {
                     close(e)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Emergency::class.java)?.copy(id = it.id) } ?: emptyList()
+                val list = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(Emergency::class.java)?.copy(id = doc.id)
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
                 trySend(list)
             }
         awaitClose { registration.remove() }
