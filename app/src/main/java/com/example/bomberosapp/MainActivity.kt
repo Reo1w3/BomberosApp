@@ -55,16 +55,30 @@ import com.example.bomberosapp.ui.components.SignatureDialog
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.lifecycle.lifecycleScope
+import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.data.repository.PilotoRepository
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.LaunchedEffect
+import com.example.bomberosapp.ui.PilotoViewModel
+import com.example.bomberosapp.ui.DetallePilotoScreen
+import com.example.bomberosapp.data.model.NuevoElementoTemp
+
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val pilotoRepository = PilotoRepository()
         setContent {
+            val pilotoViewModel: PilotoViewModel = viewModel()
             val loginViewModel: LoginViewModel = viewModel()
             val emergencyViewModel: EmergencyViewModel = viewModel()
             val adminViewModel: AdminViewModel = viewModel()
             
             var currentScreen by remember { mutableStateOf("login") }
-
+            var pilotoSeleccionado by remember { mutableStateOf<com.example.bomberosapp.data.model.Piloto?>(null) }
+            var nuevoElementoTemp by remember { mutableStateOf(NuevoElementoTemp()) }
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
                     BackHandler(enabled = currentScreen != "login") {
@@ -100,12 +114,44 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
 
-                                "fuerza_activa" -> FuerzaActivaScreen(
-                                    onAgregarNuevoElemento = { currentScreen = "nuevo_elemento" },
-                                    onVolver = { currentScreen = "admin_home" }
-                                )
+                                "fuerza_activa" -> {
+                                    LaunchedEffect(Unit) { pilotoViewModel.startObserving() }
+
+                                    FuerzaActivaScreen(
+                                        pilotos = pilotoViewModel.pilotos,
+                                        isLoading = pilotoViewModel.isLoading,
+                                        onAgregarNuevoElemento = { currentScreen = "nuevo_elemento" },
+                                        onVerDetalle = { piloto ->
+                                            pilotoSeleccionado = piloto
+                                            currentScreen = "detalle_piloto"
+                                        },
+                                        onVolver = { currentScreen = "admin_home" }
+                                    )
+                                }
+                                "detalle_piloto" -> {
+                                    pilotoSeleccionado?.let { piloto ->
+                                        DetallePilotoScreen(
+                                            piloto = piloto,
+                                            onEditarClick = {
+                                            },
+                                            onEliminarClick = {
+                                            },
+                                            onVolverClick = { currentScreen = "fuerza_activa" }
+                                        )
+                                    }
+                                }
                                 "nuevo_elemento" -> NuevoElementoScreen(
-                                    onContinuarClick = { currentScreen = "seleccion_tipo_elemento" },
+                                    onContinuarClick = { nombres, apellidos, numeroIdentificacion, codigoElemento, telefono, direccion ->
+                                        nuevoElementoTemp = NuevoElementoTemp(
+                                            nombres = nombres,
+                                            apellidos = apellidos,
+                                            numeroIdentificacion = numeroIdentificacion,
+                                            codigoElemento = codigoElemento,
+                                            telefono = telefono,
+                                            direccion = direccion
+                                        )
+                                        currentScreen = "seleccion_tipo_elemento"
+                                    },
                                     onVolverClick = { currentScreen = "fuerza_activa" }
                                 )
                                 "seleccion_tipo_elemento" -> SeleccionTipoElementoScreen(
@@ -114,11 +160,42 @@ class MainActivity : ComponentActivity() {
                                     onVolverClick = { currentScreen = "nuevo_elemento" }
                                 )
                                 "piloto" -> PilotoScreen(
-                                    onGuardarClick = { _, _, _, _ ->
+                                    onGuardarClick = { tipoLicencia, numeroLicencia, fechaVencimiento, turno ->
+                                        lifecycleScope.launch {
+                                            val guardado = pilotoRepository.guardarPiloto(
+                                                Piloto(
+                                                    nombres = nuevoElementoTemp.nombres,
+                                                    apellidos = nuevoElementoTemp.apellidos,
+                                                    numeroIdentificacion = nuevoElementoTemp.numeroIdentificacion,
+                                                    codigoElemento = nuevoElementoTemp.codigoElemento,
+                                                    telefono = nuevoElementoTemp.telefono,
+                                                    direccion = nuevoElementoTemp.direccion,
+                                                    tipoLicencia = tipoLicencia,
+                                                    numeroLicencia = numeroLicencia,
+                                                    fechaVencimiento = fechaVencimiento,
+                                                    turno = turno,
+                                                    tipoElemento = "Piloto"
+                                                )
+                                            )
+
+                                            if (guardado) {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "Piloto guardado correctamente",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                currentScreen = "fuerza_activa"
+                                            } else {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "Error al guardar piloto",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
                                     },
                                     onVolverClick = { currentScreen = "seleccion_tipo_elemento" }
                                 )
-
                                 "piloto" -> {
                                     Text("Pantalla de Piloto")
                                 }

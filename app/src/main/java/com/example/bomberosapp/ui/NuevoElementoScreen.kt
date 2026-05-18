@@ -47,9 +47,15 @@ import androidx.compose.material3.IconButton
 
 @Composable
 fun NuevoElementoScreen(
-    onContinuarClick: () -> Unit,
+    onContinuarClick: (
+        nombres: String,
+        apellidos: String,
+        numeroIdentificacion: String,
+        codigoElemento: String,
+        telefono: String,
+        direccion: String
+    ) -> Unit,
     onVolverClick: () -> Unit
-
 ) {
     var nombres by remember { mutableStateOf("") }
     var apellidos by remember { mutableStateOf("") }
@@ -185,7 +191,16 @@ fun NuevoElementoScreen(
                             Spacer(modifier = Modifier.height(20.dp))
 
                             Button(
-                                onClick = onContinuarClick,
+                                onClick = {
+                                    onContinuarClick(
+                                        nombres,
+                                        apellidos,
+                                        numeroIdentificacion,
+                                        codigoElemento,
+                                        telefono,
+                                        direccion
+                                    )
+                                },
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
                                     .height(48.dp),
