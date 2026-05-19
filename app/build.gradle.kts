@@ -9,6 +9,12 @@ plugins {
     id("kotlin-kapt")
 }
 
+val env = Properties()
+val envFile = rootProject.file(".env")
+if (envFile.exists()) {
+    env.load(FileInputStream(envFile))
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -28,8 +34,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // Cargar API Key desde local.properties para seguridad
-        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProperties.getProperty("FIREBASE_API_KEY") ?: ""}\"")
+        // Cargar API Key desde .env o local.properties
+        val apiKey = env.getProperty("FIREBASE_API_KEY") ?: localProperties.getProperty("FIREBASE_API_KEY") ?: ""
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$apiKey\"")
     }
 
     buildTypes {
@@ -72,6 +79,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.osmdroid.android)
 
     // Room
     implementation(libs.androidx.room.runtime)
