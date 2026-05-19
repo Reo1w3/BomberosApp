@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.data.model.Paramedico
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -13,11 +13,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class PilotoViewModel : ViewModel() {
+class ParamedicoViewModel : ViewModel() {
 
     private val db = FirebaseFirestore.getInstance()
 
-    var pilotos by mutableStateOf<List<Piloto>>(emptyList())
+    var paramedicos by mutableStateOf<List<Paramedico>>(emptyList())
         private set
 
     var isLoading by mutableStateOf(false)
@@ -27,15 +27,15 @@ class PilotoViewModel : ViewModel() {
         isLoading = true
 
         viewModelScope.launch {
-            getPilotosFlow().collectLatest { list ->
-                pilotos = list
+            getParamedicosFlow().collectLatest { list ->
+                paramedicos = list
                 isLoading = false
             }
         }
     }
 
-    fun eliminarPiloto(id: String, onSuccess: () -> Unit) {
-        db.collection("pilotos")
+    fun eliminarParamedico(id: String, onSuccess: () -> Unit) {
+        db.collection("paramedicos")
             .document(id)
             .delete()
             .addOnSuccessListener {
@@ -43,17 +43,17 @@ class PilotoViewModel : ViewModel() {
             }
     }
 
-    fun actualizarPiloto(piloto: Piloto, onSuccess: () -> Unit) {
-        db.collection("pilotos")
-            .document(piloto.id)
-            .set(piloto)
+    fun actualizarParamedico(paramedico: Paramedico, onSuccess: () -> Unit) {
+        db.collection("paramedicos")
+            .document(paramedico.id)
+            .set(paramedico)
             .addOnSuccessListener {
                 onSuccess()
             }
     }
 
-    private fun getPilotosFlow(): Flow<List<Piloto>> = callbackFlow {
-        val registration = db.collection("pilotos")
+    private fun getParamedicosFlow(): Flow<List<Paramedico>> = callbackFlow {
+        val registration = db.collection("paramedicos")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     close(e)
@@ -61,8 +61,8 @@ class PilotoViewModel : ViewModel() {
                 }
 
                 val list = snapshot?.documents?.mapNotNull { document ->
-                    val piloto = document.toObject(Piloto::class.java)
-                    piloto?.copy(id = document.id)
+                    val paramedico = document.toObject(Paramedico::class.java)
+                    paramedico?.copy(id = document.id)
                 } ?: emptyList()
 
                 trySend(list)

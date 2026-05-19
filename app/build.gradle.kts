@@ -82,9 +82,11 @@ dependencies {
     implementation(libs.osmdroid.android)
 
     // Room
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    val room_version = "2.7.2"
+
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

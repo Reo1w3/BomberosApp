@@ -1,8 +1,7 @@
 package com.example.bomberosapp
-import com.example.bomberosapp.ui.NuevoElementoScreen
+
 import android.Manifest
 import android.content.pm.PackageManager
-import android.location.Location
 import android.location.LocationManager
 import android.os.Bundle
 import android.widget.Toast
@@ -41,46 +40,58 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bomberosapp.data.model.Emergency
+import com.example.bomberosapp.data.model.NuevoElementoTemp
+import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.data.repository.PilotoRepository
 import com.example.bomberosapp.ui.AdminViewModel
+import com.example.bomberosapp.ui.DetallePilotoScreen
+import com.example.bomberosapp.ui.EditarPilotoScreen
 import com.example.bomberosapp.ui.EmergencyUIState
 import com.example.bomberosapp.ui.EmergencyViewModel
 import com.example.bomberosapp.ui.FuerzaActivaScreen
 import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
+import com.example.bomberosapp.ui.NuevaEmergenciaScreen
+import com.example.bomberosapp.ui.NuevoElementoScreen
 import com.example.bomberosapp.ui.PilotoScreen
+import com.example.bomberosapp.ui.PilotoViewModel
 import com.example.bomberosapp.ui.SeleccionTipoElementoScreen
-import com.example.bomberosapp.ui.components.SignatureDialog
 import com.example.bomberosapp.ui.components.OsmMapView
+import com.example.bomberosapp.ui.components.SignatureDialog
+import kotlinx.coroutines.launch
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import org.osmdroid.util.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.*
 
-import androidx.lifecycle.lifecycleScope
-import com.example.bomberosapp.data.model.Piloto
-import com.example.bomberosapp.data.repository.PilotoRepository
-import kotlinx.coroutines.launch
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.LaunchedEffect
-import com.example.bomberosapp.ui.PilotoViewModel
-import com.example.bomberosapp.ui.DetallePilotoScreen
-import com.example.bomberosapp.data.model.NuevoElementoTemp
-
+import com.example.bomberosapp.data.model.Paramedico
+import com.example.bomberosapp.data.repository.ParamedicoRepository
+import com.example.bomberosapp.ui.DetalleParamedicoScreen
+import com.example.bomberosapp.ui.EditarParamedicoScreen
+import com.example.bomberosapp.ui.ParamedicoScreen
+import com.example.bomberosapp.ui.ParamedicoViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pilotoRepository = PilotoRepository()
+        val paramedicoRepository = ParamedicoRepository()
+
         setContent {
             val pilotoViewModel: PilotoViewModel = viewModel()
             val loginViewModel: LoginViewModel = viewModel()
             val emergencyViewModel: EmergencyViewModel = viewModel()
             val adminViewModel: AdminViewModel = viewModel()
-            
+            val paramedicoViewModel: ParamedicoViewModel = viewModel()
             var currentScreen by remember { mutableStateOf("login") }
-            var pilotoSeleccionado by remember { mutableStateOf<com.example.bomberosapp.data.model.Piloto?>(null) }
+            var pilotoSeleccionado by remember { mutableStateOf<Piloto?>(null) }
             var nuevoElementoTemp by remember { mutableStateOf(NuevoElementoTemp()) }
+            var paramedicoSeleccionado by remember { mutableStateOf<Paramedico?>(null) }
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
                     BackHandler(enabled = currentScreen != "login") {
@@ -115,19 +126,30 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "login"
                                     }
                                 )
-
                                 "fuerza_activa" -> {
-                                    LaunchedEffect(Unit) { pilotoViewModel.startObserving() }
+                                    LaunchedEffect(Unit) {
+                                        pilotoViewModel.startObserving()
+                                        paramedicoViewModel.startObserving()
+                                    }
 
                                     FuerzaActivaScreen(
                                         pilotos = pilotoViewModel.pilotos,
-                                        isLoading = pilotoViewModel.isLoading,
-                                        onAgregarNuevoElemento = { currentScreen = "nuevo_elemento" },
-                                        onVerDetalle = { piloto ->
+                                        paramedicos = paramedicoViewModel.paramedicos,
+                                        isLoading = pilotoViewModel.isLoading || paramedicoViewModel.isLoading,
+                                        onAgregarNuevoElemento = {
+                                            currentScreen = "nuevo_elemento"
+                                        },
+                                        onVerDetallePiloto = { piloto ->
                                             pilotoSeleccionado = piloto
                                             currentScreen = "detalle_piloto"
                                         },
-                                        onVolver = { currentScreen = "admin_home" }
+                                        onVerDetalleParamedico = { paramedico ->
+                                            paramedicoSeleccionado = paramedico
+                                            currentScreen = "detalle_paramedico"
+                                        },
+                                        onVolver = {
+                                            currentScreen = "admin_home"
+                                        }
                                     )
                                 }
                                 "detalle_piloto" -> {
@@ -135,10 +157,96 @@ class MainActivity : ComponentActivity() {
                                         DetallePilotoScreen(
                                             piloto = piloto,
                                             onEditarClick = {
+                                                currentScreen = "editar_piloto"
                                             },
                                             onEliminarClick = {
+                                                pilotoViewModel.eliminarPiloto(piloto.id) {
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Elemento eliminado correctamente",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    pilotoSeleccionado = null
+                                                    currentScreen = "fuerza_activa"
+                                                }
                                             },
-                                            onVolverClick = { currentScreen = "fuerza_activa" }
+                                            onVolverClick = {
+                                                pilotoSeleccionado = null
+                                                currentScreen = "fuerza_activa"
+                                            }
+                                        )
+                                    }
+                                }
+
+                                "editar_piloto" -> {
+                                    pilotoSeleccionado?.let { piloto ->
+                                        EditarPilotoScreen(
+                                            piloto = piloto,
+                                            onGuardarClick = { pilotoActualizado ->
+                                                pilotoViewModel.actualizarPiloto(pilotoActualizado) {
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Datos actualizados correctamente",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    pilotoSeleccionado = pilotoActualizado
+                                                    currentScreen = "detalle_piloto"
+                                                }
+                                            },
+                                            onVolverClick = {
+                                                currentScreen = "detalle_piloto"
+                                            }
+                                        )
+                                    }
+                                }
+                                "detalle_paramedico" -> {
+                                    paramedicoSeleccionado?.let { paramedico ->
+                                        DetalleParamedicoScreen(
+                                            paramedico = paramedico,
+                                            onEditarClick = {
+                                                currentScreen = "editar_paramedico"
+                                            },
+                                            onEliminarClick = {
+                                                paramedicoViewModel.eliminarParamedico(paramedico.id) {
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Elemento eliminado correctamente",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    paramedicoSeleccionado = null
+                                                    currentScreen = "fuerza_activa"
+                                                }
+                                            },
+                                            onVolverClick = {
+                                                paramedicoSeleccionado = null
+                                                currentScreen = "fuerza_activa"
+                                            }
+                                        )
+                                    }
+                                }
+
+                                "editar_paramedico" -> {
+                                    paramedicoSeleccionado?.let { paramedico ->
+                                        EditarParamedicoScreen(
+                                            paramedico = paramedico,
+                                            onGuardarClick = { paramedicoActualizado ->
+                                                paramedicoViewModel.actualizarParamedico(paramedicoActualizado) {
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "Datos actualizados correctamente",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    paramedicoSeleccionado = paramedicoActualizado
+                                                    currentScreen = "detalle_paramedico"
+                                                }
+                                            },
+                                            onVolverClick = {
+                                                currentScreen = "detalle_paramedico"
+                                            }
                                         )
                                     }
                                 }
@@ -179,28 +287,56 @@ class MainActivity : ComponentActivity() {
                                                     tipoElemento = "Piloto"
                                                 )
                                             )
-
                                             if (guardado) {
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Piloto guardado correctamente",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(this@MainActivity, "Piloto guardado correctamente", Toast.LENGTH_SHORT).show()
                                                 currentScreen = "fuerza_activa"
                                             } else {
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Error al guardar piloto",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(this@MainActivity, "Error al guardar piloto", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },
                                     onVolverClick = { currentScreen = "seleccion_tipo_elemento" }
                                 )
-                                "piloto" -> {
-                                    Text("Pantalla de Piloto")
-                                }
+                                "paramedico" -> ParamedicoScreen(
+                                    onGuardarClick = { especialidad, certificacion, experiencia, turno ->
+                                        lifecycleScope.launch {
+                                            val guardado = paramedicoRepository.guardarParamedico(
+                                                Paramedico(
+                                                    nombres = nuevoElementoTemp.nombres,
+                                                    apellidos = nuevoElementoTemp.apellidos,
+                                                    numeroIdentificacion = nuevoElementoTemp.numeroIdentificacion,
+                                                    codigoElemento = nuevoElementoTemp.codigoElemento,
+                                                    telefono = nuevoElementoTemp.telefono,
+                                                    direccion = nuevoElementoTemp.direccion,
+                                                    especialidad = especialidad,
+                                                    certificacion = certificacion,
+                                                    experiencia = experiencia,
+                                                    turno = turno,
+                                                    tipoElemento = "Paramédico"
+                                                )
+                                            )
+
+                                            if (guardado) {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "Paramédico guardado correctamente",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+
+                                                currentScreen = "fuerza_activa"
+                                            } else {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "Error al guardar paramédico",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    },
+                                    onVolverClick = {
+                                        currentScreen = "seleccion_tipo_elemento"
+                                    }
+                                )
                                 "admin_list" -> {
                                     LaunchedEffect(Unit) { adminViewModel.startObserving() }
                                     AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
@@ -581,24 +717,19 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
                 },
                 text = {
                     Box(Modifier.fillMaxWidth().height(400.dp)) {
-                        OsmMapView(
+                        OsmMapView (
                             center = selectedLocation,
                             onMapReady = { map ->
-                                map.setOnClickListener {
-                                    // El mapa de osmdroid maneja clics internamente
-                                }
-                                // Listener para capturar el centro cuando el mapa se mueve
-                                map.addMapListener(object : org.osmdroid.events.MapListener {
-                                    override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
+                                map.addMapListener(object : MapListener {
+                                    override fun onScroll(event: ScrollEvent): Boolean {
                                         val center = map.mapCenter as GeoPoint
                                         selectedLocation = center
                                         return true
                                     }
-                                    override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean = true
+                                    override fun onZoom(event: ZoomEvent): Boolean = true
                                 })
                             }
                         )
-                        // Icono de mira en el centro
                         Icon(
                             Icons.Default.Add,
                             contentDescription = null,
@@ -661,7 +792,6 @@ fun FieldInput(
 @Composable
 fun DropdownField(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
@@ -755,11 +885,7 @@ fun BottomNavBar(currentScreen: String, onHome: () -> Unit, onProfile: () -> Uni
 }
 
 @Composable
-fun AdminHomeScreen(
-    onList: () -> Unit,
-    onVerFuerzaActiva: () -> Unit,
-    onLogout: () -> Unit
-) {
+fun AdminHomeScreen(onList: () -> Unit, onVerFuerzaActiva: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(title = "PANEL DE OFICIAL", onLogout = onLogout)
         Column(Modifier.padding(24.dp)) {
@@ -768,7 +894,6 @@ fun AdminHomeScreen(
             MainButton("VER FUERZA\nACTIVA", Icons.Default.Group, onVerFuerzaActiva)
         }
     }
-
 }
 
 @Composable

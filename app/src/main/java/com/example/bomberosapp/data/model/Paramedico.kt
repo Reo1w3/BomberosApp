@@ -1,6 +1,6 @@
 package com.example.bomberosapp.data.model
 
-data class Piloto(
+data class Paramedico(
     val id: String = "",
     val nombres: String = "",
     val apellidos: String = "",
@@ -8,10 +8,10 @@ data class Piloto(
     val codigoElemento: String = "",
     val telefono: String = "",
     val direccion: String = "",
-    val tipoLicencia: String = "",
-    val numeroLicencia: String = "",
-    val fechaVencimiento: String = "",
+    val especialidad: String = "",
+    val certificacion: String = "",
+    val experiencia: String = "",
     val turno: String = "",
-    val tipoElemento: String = "Piloto",
+    val tipoElemento: String = "Paramédico",
     val timestamp: Long = System.currentTimeMillis()
 )

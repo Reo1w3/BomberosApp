@@ -31,11 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
-import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.data.model.Paramedico
 
 @Composable
-fun DetallePilotoScreen(
-    piloto: Piloto,
+fun DetalleParamedicoScreen(
+    paramedico: Paramedico,
     onEditarClick: () -> Unit,
     onEliminarClick: () -> Unit,
     onVolverClick: () -> Unit
@@ -56,9 +56,7 @@ fun DetallePilotoScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFEDEAF0)
-                )
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEDEAF0))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -70,17 +68,17 @@ fun DetallePilotoScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    CampoDetalle("Nombres", piloto.nombres)
-                    CampoDetalle("Apellidos", piloto.apellidos)
-                    CampoDetalle("Número de identificación", piloto.numeroIdentificacion)
-                    CampoDetalle("Código de elemento", piloto.codigoElemento)
-                    CampoDetalle("Teléfono", piloto.telefono)
-                    CampoDetalle("Dirección", piloto.direccion)
-                    CampoDetalle("Tipo de elemento", piloto.tipoElemento)
-                    CampoDetalle("Tipo de licencia", piloto.tipoLicencia)
-                    CampoDetalle("Número de licencia", piloto.numeroLicencia)
-                    CampoDetalle("Fecha de vencimiento", piloto.fechaVencimiento)
-                    CampoDetalle("Turno", piloto.turno)
+                    CampoDetalle("Nombres", paramedico.nombres)
+                    CampoDetalle("Apellidos", paramedico.apellidos)
+                    CampoDetalle("Número de identificación", paramedico.numeroIdentificacion)
+                    CampoDetalle("Código de elemento", paramedico.codigoElemento)
+                    CampoDetalle("Teléfono", paramedico.telefono)
+                    CampoDetalle("Dirección", paramedico.direccion)
+                    CampoDetalle("Tipo de elemento", paramedico.tipoElemento)
+                    CampoDetalle("Especialidad", paramedico.especialidad)
+                    CampoDetalle("Certificación", paramedico.certificacion)
+                    CampoDetalle("Años de experiencia", paramedico.experiencia)
+                    CampoDetalle("Turno", paramedico.turno)
                 }
             }
 
@@ -91,52 +89,28 @@ fun DetallePilotoScreen(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
             ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Text(
-                    text = " EDITAR DATOS",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
+                Text(" EDITAR DATOS", color = Color.White, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = {
-                    mostrarDialogo = true
-                },
+                onClick = { mostrarDialogo = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Text(
-                    text = " ELIMINAR",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                Text(" ELIMINAR", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
 
     if (mostrarDialogo) {
         AlertDialog(
-            onDismissRequest = {
-                mostrarDialogo = false
-            },
-            title = {
-                Text("Confirmar eliminación")
-            },
-            text = {
-                Text("¿Desea eliminar al elemento de fuerza activa?")
-            },
+            onDismissRequest = { mostrarDialogo = false },
+            title = { Text("Confirmar eliminación") },
+            text = { Text("¿Desea eliminar al elemento de fuerza activa?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -149,36 +123,10 @@ fun DetallePilotoScreen(
                 }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        mostrarDialogo = false
-                    }
-                ) {
+                OutlinedButton(onClick = { mostrarDialogo = false }) {
                     Text("Cancelar")
                 }
             }
         )
-    }
-}
-
-@Composable
-fun CampoDetalle(label: String, valor: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = if (valor.isBlank()) "Sin dato" else valor,
-            fontSize = 16.sp,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
     }
 }
