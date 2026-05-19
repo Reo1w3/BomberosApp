@@ -1,6 +1,7 @@
 package com.example.bomberosapp
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
@@ -20,7 +21,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -361,77 +364,209 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
-    var user by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    val sharedPreferences = remember {
+        context.getSharedPreferences("login_guardado", Context.MODE_PRIVATE)
+    }
+
+    var user by remember {
+        mutableStateOf(sharedPreferences.getString("usuario", "") ?: "")
+    }
+
+    var pass by remember {
+        mutableStateOf(sharedPreferences.getString("password", "") ?: "")
+    }
+
+    var recordarDatos by remember {
+        mutableStateOf(sharedPreferences.getBoolean("recordar", false))
+    }
+
     var showPass by remember { mutableStateOf(false) }
     val state = viewModel.loginState
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(rememberScrollState())
+    ) {
         Column(
-            modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFE30613)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .background(Color(0xFFE30613)),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(painter = painterResource(id = R.drawable.logo), contentDescription = null, modifier = Modifier.size(120.dp))
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = null,
+                modifier = Modifier.size(135.dp)
+            )
+
             Spacer(Modifier.height(8.dp))
-            Text("INICIO DE SESIÓN", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
+
+            Text(
+                "INICIO DE SESIÓN",
+                color = Color.White,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black
+            )
         }
 
-        Box(modifier = Modifier.fillMaxWidth().weight(0.6f).padding(horizontal = 24.dp).offset(y = (-30).dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .offset(y = (-35).dp)
+        ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(6.dp)
             ) {
-                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     LabelWithIcon("VOLUNTARIO", Icons.Default.Person)
-                    OutlinedTextField(value = user, onValueChange = { user = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
-                    
-                    Spacer(Modifier.height(12.dp))
-                    LabelWithIcon("CONTRASEÑA", Icons.Default.Lock)
+
                     OutlinedTextField(
-                        value = pass, onValueChange = { pass = it },
+                        value = user,
+                        onValueChange = { user = it },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
-                        visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation()
+                        singleLine = true
                     )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    LabelWithIcon("CONTRASEÑA", Icons.Default.Lock)
+
+                    OutlinedTextField(
+                        value = pass,
+                        onValueChange = { pass = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        visualTransformation = if (showPass) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        }
+                    )
+
+                    Spacer(Modifier.height(6.dp))
 
                     TextButton(onClick = { showPass = !showPass }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if(showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                            Icon(
+                                if (showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Black
+                            )
+
                             Spacer(Modifier.width(4.dp))
-                            Text("MOSTRAR CONTRASEÑA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+
+                            Text(
+                                "MOSTRAR CONTRASEÑA",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
                         }
                     }
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = recordarDatos,
+                            onCheckedChange = { recordarDatos = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFFE30613),
+                                uncheckedColor = Color.Gray,
+                                checkmarkColor = Color.White
+                            )
+                        )
+
+                        Text(
+                            text = "Recordarme",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                    }
+
                     if (state is LoginUIState.Error) {
-                        Text(state.message, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                        Text(
+                            text = state.message,
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
                     }
 
                     Button(
-                        onClick = { viewModel.login(user, pass) { onLoginSuccess(user) } },
-                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                        onClick = {
+                            viewModel.login(user, pass) {
+                                if (recordarDatos) {
+                                    sharedPreferences.edit()
+                                        .putString("usuario", user)
+                                        .putString("password", pass)
+                                        .putBoolean("recordar", true)
+                                        .apply()
+                                } else {
+                                    sharedPreferences.edit()
+                                        .clear()
+                                        .apply()
+                                }
+
+                                onLoginSuccess(user)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
                         enabled = state !is LoginUIState.Loading,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFBABA)),
                         shape = RoundedCornerShape(30.dp)
                     ) {
                         if (state is LoginUIState.Loading) {
-                            CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(
+                                color = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
                         } else {
-                            Text("INGRESAR", color = Color.Black, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            Text(
+                                "INGRESAR",
+                                color = Color.Black,
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Black
+                            )
                         }
                     }
 
                     TextButton(onClick = { }) {
-                        Text("OLVIDE MI CONTRASEÑA AQUI", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(
+                            "OLVIDÉ MI CONTRASEÑA",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 fun LabelWithIcon(text: String, icon: ImageVector) {
     Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
