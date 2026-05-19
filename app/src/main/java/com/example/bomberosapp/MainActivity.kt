@@ -1,8 +1,8 @@
 package com.example.bomberosapp
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
 import android.location.LocationManager
 import android.os.Bundle
 import android.widget.Toast
@@ -21,9 +21,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -38,68 +37,49 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bomberosapp.data.model.Emergency
-import com.example.bomberosapp.data.model.NuevoElementoTemp
-import com.example.bomberosapp.data.model.Piloto
-import com.example.bomberosapp.data.repository.PilotoRepository
+import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.ui.AdminViewModel
-import com.example.bomberosapp.ui.DetallePilotoScreen
-import com.example.bomberosapp.ui.EditarPilotoScreen
 import com.example.bomberosapp.ui.EmergencyUIState
 import com.example.bomberosapp.ui.EmergencyViewModel
-import com.example.bomberosapp.ui.FuerzaActivaScreen
 import com.example.bomberosapp.ui.LoginUIState
 import com.example.bomberosapp.ui.LoginViewModel
-import com.example.bomberosapp.ui.NuevaEmergenciaScreen
-import com.example.bomberosapp.ui.NuevoElementoScreen
-import com.example.bomberosapp.ui.PilotoScreen
-import com.example.bomberosapp.ui.PilotoViewModel
-import com.example.bomberosapp.ui.SeleccionTipoElementoScreen
-import com.example.bomberosapp.ui.components.OsmMapView
 import com.example.bomberosapp.ui.components.SignatureDialog
+import com.example.bomberosapp.ui.components.OsmMapView
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
-import org.osmdroid.events.MapListener
-import org.osmdroid.events.ScrollEvent
-import org.osmdroid.events.ZoomEvent
+import kotlinx.coroutines.tasks.await
 import org.osmdroid.util.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.*
 
-import com.example.bomberosapp.data.model.Paramedico
-import com.example.bomberosapp.data.repository.ParamedicoRepository
-import com.example.bomberosapp.ui.DetalleParamedicoScreen
-import com.example.bomberosapp.ui.EditarParamedicoScreen
-import com.example.bomberosapp.ui.ParamedicoScreen
-import com.example.bomberosapp.ui.ParamedicoViewModel
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pilotoRepository = PilotoRepository()
-        val paramedicoRepository = ParamedicoRepository()
-
         setContent {
-            val pilotoViewModel: PilotoViewModel = viewModel()
             val loginViewModel: LoginViewModel = viewModel()
             val emergencyViewModel: EmergencyViewModel = viewModel()
             val adminViewModel: AdminViewModel = viewModel()
-            val paramedicoViewModel: ParamedicoViewModel = viewModel()
+            
             var currentScreen by remember { mutableStateOf("login") }
-            var pilotoSeleccionado by remember { mutableStateOf<Piloto?>(null) }
-            var nuevoElementoTemp by remember { mutableStateOf(NuevoElementoTemp()) }
-            var paramedicoSeleccionado by remember { mutableStateOf<Paramedico?>(null) }
+            var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
+
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
                     BackHandler(enabled = currentScreen != "login") {
                         currentScreen = when (currentScreen) {
                             "admin_list" -> "admin_home"
+                            "admin_unidades" -> "admin_home"
+                            "admin_nueva_unidad" -> "admin_unidades"
+                            "admin_detalle_unidad" -> "admin_unidades"
+                            "admin_editar_unidad" -> "admin_detalle_unidad"
                             "form" -> "home"
                             else -> "login"
                         }
@@ -123,226 +103,57 @@ class MainActivity : ComponentActivity() {
                                 )
                                 "admin_home" -> AdminHomeScreen(
                                     onList = { currentScreen = "admin_list" },
-                                    onVerFuerzaActiva = { currentScreen = "fuerza_activa" },
+                                    onUnidades = { currentScreen = "admin_unidades" },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
                                     }
                                 )
-                                "fuerza_activa" -> {
-                                    LaunchedEffect(Unit) {
-                                        pilotoViewModel.startObserving()
-                                        paramedicoViewModel.startObserving()
-                                    }
-
-                                    FuerzaActivaScreen(
-                                        pilotos = pilotoViewModel.pilotos,
-                                        paramedicos = paramedicoViewModel.paramedicos,
-                                        isLoading = pilotoViewModel.isLoading || paramedicoViewModel.isLoading,
-                                        onAgregarNuevoElemento = {
-                                            currentScreen = "nuevo_elemento"
-                                        },
-                                        onVerDetallePiloto = { piloto ->
-                                            pilotoSeleccionado = piloto
-                                            currentScreen = "detalle_piloto"
-                                        },
-                                        onVerDetalleParamedico = { paramedico ->
-                                            paramedicoSeleccionado = paramedico
-                                            currentScreen = "detalle_paramedico"
-                                        },
-                                        onVolver = {
-                                            currentScreen = "admin_home"
-                                        }
-                                    )
-                                }
-                                "detalle_piloto" -> {
-                                    pilotoSeleccionado?.let { piloto ->
-                                        DetallePilotoScreen(
-                                            piloto = piloto,
-                                            onEditarClick = {
-                                                currentScreen = "editar_piloto"
-                                            },
-                                            onEliminarClick = {
-                                                pilotoViewModel.eliminarPiloto(piloto.id) {
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "Elemento eliminado correctamente",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-
-                                                    pilotoSeleccionado = null
-                                                    currentScreen = "fuerza_activa"
-                                                }
-                                            },
-                                            onVolverClick = {
-                                                pilotoSeleccionado = null
-                                                currentScreen = "fuerza_activa"
-                                            }
-                                        )
-                                    }
-                                }
-
-                                "editar_piloto" -> {
-                                    pilotoSeleccionado?.let { piloto ->
-                                        EditarPilotoScreen(
-                                            piloto = piloto,
-                                            onGuardarClick = { pilotoActualizado ->
-                                                pilotoViewModel.actualizarPiloto(pilotoActualizado) {
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "Datos actualizados correctamente",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-
-                                                    pilotoSeleccionado = pilotoActualizado
-                                                    currentScreen = "detalle_piloto"
-                                                }
-                                            },
-                                            onVolverClick = {
-                                                currentScreen = "detalle_piloto"
-                                            }
-                                        )
-                                    }
-                                }
-                                "detalle_paramedico" -> {
-                                    paramedicoSeleccionado?.let { paramedico ->
-                                        DetalleParamedicoScreen(
-                                            paramedico = paramedico,
-                                            onEditarClick = {
-                                                currentScreen = "editar_paramedico"
-                                            },
-                                            onEliminarClick = {
-                                                paramedicoViewModel.eliminarParamedico(paramedico.id) {
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "Elemento eliminado correctamente",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-
-                                                    paramedicoSeleccionado = null
-                                                    currentScreen = "fuerza_activa"
-                                                }
-                                            },
-                                            onVolverClick = {
-                                                paramedicoSeleccionado = null
-                                                currentScreen = "fuerza_activa"
-                                            }
-                                        )
-                                    }
-                                }
-
-                                "editar_paramedico" -> {
-                                    paramedicoSeleccionado?.let { paramedico ->
-                                        EditarParamedicoScreen(
-                                            paramedico = paramedico,
-                                            onGuardarClick = { paramedicoActualizado ->
-                                                paramedicoViewModel.actualizarParamedico(paramedicoActualizado) {
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "Datos actualizados correctamente",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-
-                                                    paramedicoSeleccionado = paramedicoActualizado
-                                                    currentScreen = "detalle_paramedico"
-                                                }
-                                            },
-                                            onVolverClick = {
-                                                currentScreen = "detalle_paramedico"
-                                            }
-                                        )
-                                    }
-                                }
-                                "nuevo_elemento" -> NuevoElementoScreen(
-                                    onContinuarClick = { nombres, apellidos, numeroIdentificacion, codigoElemento, telefono, direccion ->
-                                        nuevoElementoTemp = NuevoElementoTemp(
-                                            nombres = nombres,
-                                            apellidos = apellidos,
-                                            numeroIdentificacion = numeroIdentificacion,
-                                            codigoElemento = codigoElemento,
-                                            telefono = telefono,
-                                            direccion = direccion
-                                        )
-                                        currentScreen = "seleccion_tipo_elemento"
-                                    },
-                                    onVolverClick = { currentScreen = "fuerza_activa" }
-                                )
-                                "seleccion_tipo_elemento" -> SeleccionTipoElementoScreen(
-                                    onParamedicoClick = { currentScreen = "paramedico" },
-                                    onPilotoClick = { currentScreen = "piloto" },
-                                    onVolverClick = { currentScreen = "nuevo_elemento" }
-                                )
-                                "piloto" -> PilotoScreen(
-                                    onGuardarClick = { tipoLicencia, numeroLicencia, fechaVencimiento, turno ->
-                                        lifecycleScope.launch {
-                                            val guardado = pilotoRepository.guardarPiloto(
-                                                Piloto(
-                                                    nombres = nuevoElementoTemp.nombres,
-                                                    apellidos = nuevoElementoTemp.apellidos,
-                                                    numeroIdentificacion = nuevoElementoTemp.numeroIdentificacion,
-                                                    codigoElemento = nuevoElementoTemp.codigoElemento,
-                                                    telefono = nuevoElementoTemp.telefono,
-                                                    direccion = nuevoElementoTemp.direccion,
-                                                    tipoLicencia = tipoLicencia,
-                                                    numeroLicencia = numeroLicencia,
-                                                    fechaVencimiento = fechaVencimiento,
-                                                    turno = turno,
-                                                    tipoElemento = "Piloto"
-                                                )
-                                            )
-                                            if (guardado) {
-                                                Toast.makeText(this@MainActivity, "Piloto guardado correctamente", Toast.LENGTH_SHORT).show()
-                                                currentScreen = "fuerza_activa"
-                                            } else {
-                                                Toast.makeText(this@MainActivity, "Error al guardar piloto", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                    onVolverClick = { currentScreen = "seleccion_tipo_elemento" }
-                                )
-                                "paramedico" -> ParamedicoScreen(
-                                    onGuardarClick = { especialidad, certificacion, experiencia, turno ->
-                                        lifecycleScope.launch {
-                                            val guardado = paramedicoRepository.guardarParamedico(
-                                                Paramedico(
-                                                    nombres = nuevoElementoTemp.nombres,
-                                                    apellidos = nuevoElementoTemp.apellidos,
-                                                    numeroIdentificacion = nuevoElementoTemp.numeroIdentificacion,
-                                                    codigoElemento = nuevoElementoTemp.codigoElemento,
-                                                    telefono = nuevoElementoTemp.telefono,
-                                                    direccion = nuevoElementoTemp.direccion,
-                                                    especialidad = especialidad,
-                                                    certificacion = certificacion,
-                                                    experiencia = experiencia,
-                                                    turno = turno,
-                                                    tipoElemento = "Paramédico"
-                                                )
-                                            )
-
-                                            if (guardado) {
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Paramédico guardado correctamente",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-
-                                                currentScreen = "fuerza_activa"
-                                            } else {
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Error al guardar paramédico",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    },
-                                    onVolverClick = {
-                                        currentScreen = "seleccion_tipo_elemento"
-                                    }
-                                )
                                 "admin_list" -> {
                                     LaunchedEffect(Unit) { adminViewModel.startObserving() }
                                     AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
+                                }
+                                "admin_unidades" -> {
+                                    AdminUnidadesScreen(
+                                        onBack = { currentScreen = "admin_home" },
+                                        onAdd = { currentScreen = "admin_nueva_unidad" },
+                                        onUnitClick = { unit ->
+                                            selectedUnidad = unit
+                                            currentScreen = "admin_detalle_unidad"
+                                        }
+                                    )
+                                }
+                                "admin_nueva_unidad" -> {
+                                    AgregarUnidadScreen(
+                                        onBack = { currentScreen = "admin_unidades" },
+                                        onSuccess = { currentScreen = "admin_unidades" }
+                                    )
+                                }
+                                "admin_detalle_unidad" -> {
+                                    selectedUnidad?.let { unit ->
+                                        DetalleUnidadScreen(
+                                            unidad = unit,
+                                            onBack = { currentScreen = "admin_unidades" },
+                                            onEdit = { currentScreen = "admin_editar_unidad" },
+                                            onDeleteSuccess = { currentScreen = "admin_unidades" }
+                                        )
+                                    }
+                                }
+                                "admin_editar_unidad" -> {
+                                    selectedUnidad?.let { unit ->
+                                        AgregarUnidadScreen(
+                                            unidadAEditar = unit,
+                                            onBack = { currentScreen = "admin_detalle_unidad" },
+                                            onSuccess = {
+                                                // Refrescar la unidad seleccionada después de editar
+                                                FirebaseFirestore.getInstance().collection("unidad").document(unit.id).get()
+                                                    .addOnSuccessListener { doc ->
+                                                        selectedUnidad = doc.toObject(Unidad::class.java)?.copy(id = doc.id)
+                                                        currentScreen = "admin_detalle_unidad"
+                                                    }
+                                            }
+                                        )
+                                    }
                                 }
                                 "form" -> NuevaEmergenciaScreen(emergencyViewModel) { currentScreen = "home" }
                             }
@@ -364,209 +175,77 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
-    val context = LocalContext.current
-
-    val sharedPreferences = remember {
-        context.getSharedPreferences("login_guardado", Context.MODE_PRIVATE)
-    }
-
-    var user by remember {
-        mutableStateOf(sharedPreferences.getString("usuario", "") ?: "")
-    }
-
-    var pass by remember {
-        mutableStateOf(sharedPreferences.getString("password", "") ?: "")
-    }
-
-    var recordarDatos by remember {
-        mutableStateOf(sharedPreferences.getBoolean("recordar", false))
-    }
-
+    var user by remember { mutableStateOf("") }
+    var pass by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
     val state = viewModel.loginState
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .verticalScroll(rememberScrollState())
-    ) {
+    Column(Modifier.fillMaxSize().background(Color.White)) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .background(Color(0xFFE30613)),
+            modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFE30613)),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = null,
-                modifier = Modifier.size(135.dp)
-            )
-
+            Image(painter = painterResource(id = R.drawable.logo), contentDescription = null, modifier = Modifier.size(120.dp))
             Spacer(Modifier.height(8.dp))
-
-            Text(
-                "INICIO DE SESIÓN",
-                color = Color.White,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Black
-            )
+            Text("INICIO DE SESIÓN", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .offset(y = (-35).dp)
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(0.6f).padding(horizontal = 24.dp).offset(y = (-30).dp)) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(6.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     LabelWithIcon("VOLUNTARIO", Icons.Default.Person)
-
-                    OutlinedTextField(
-                        value = user,
-                        onValueChange = { user = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        singleLine = true
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
+                    OutlinedTextField(value = user, onValueChange = { user = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
+                    
+                    Spacer(Modifier.height(12.dp))
                     LabelWithIcon("CONTRASEÑA", Icons.Default.Lock)
-
                     OutlinedTextField(
-                        value = pass,
-                        onValueChange = { pass = it },
+                        value = pass, onValueChange = { pass = it },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
-                        singleLine = true,
-                        visualTransformation = if (showPass) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        }
+                        visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation()
                     )
-
-                    Spacer(Modifier.height(6.dp))
 
                     TextButton(onClick = { showPass = !showPass }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = Color.Black
-                            )
-
+                            Icon(if(showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(16.dp), tint = Color.Black)
                             Spacer(Modifier.width(4.dp))
-
-                            Text(
-                                "MOSTRAR CONTRASEÑA",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
+                            Text("MOSTRAR CONTRASEÑA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = recordarDatos,
-                            onCheckedChange = { recordarDatos = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFFE30613),
-                                uncheckedColor = Color.Gray,
-                                checkmarkColor = Color.White
-                            )
-                        )
-
-                        Text(
-                            text = "Recordarme",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                    }
-
                     if (state is LoginUIState.Error) {
-                        Text(
-                            text = state.message,
-                            color = Color.Red,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
+                        Text(state.message, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                     }
 
                     Button(
-                        onClick = {
-                            viewModel.login(user, pass) {
-                                if (recordarDatos) {
-                                    sharedPreferences.edit()
-                                        .putString("usuario", user)
-                                        .putString("password", pass)
-                                        .putBoolean("recordar", true)
-                                        .apply()
-                                } else {
-                                    sharedPreferences.edit()
-                                        .clear()
-                                        .apply()
-                                }
-
-                                onLoginSuccess(user)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
+                        onClick = { viewModel.login(user, pass) { onLoginSuccess(user) } },
+                        modifier = Modifier.fillMaxWidth().height(60.dp),
                         enabled = state !is LoginUIState.Loading,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFBABA)),
                         shape = RoundedCornerShape(30.dp)
                     ) {
                         if (state is LoginUIState.Loading) {
-                            CircularProgressIndicator(
-                                color = Color.Black,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
                         } else {
-                            Text(
-                                "INGRESAR",
-                                color = Color.Black,
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Black
-                            )
+                            Text("INGRESAR", color = Color.Black, fontSize = 22.sp, fontWeight = FontWeight.Black)
                         }
                     }
 
                     TextButton(onClick = { }) {
-                        Text(
-                            "OLVIDÉ MI CONTRASEÑA",
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        Text("OLVIDE MI CONTRASEÑA AQUI", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
         }
     }
 }
+
 @Composable
 fun LabelWithIcon(text: String, icon: ImageVector) {
     Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -579,7 +258,7 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 @Composable
 fun HomeScreen(onNewEmergency: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        HeaderApp(onLogout = onLogout)
+        HeaderApp(onAction = onLogout)
         Column(Modifier.padding(20.dp)) {
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
             Spacer(Modifier.height(16.dp))
@@ -651,7 +330,7 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
     val tiposServicio = viewModel.tiposServicio
 
     Column(Modifier.fillMaxSize()) {
-        HeaderApp(title = "Reporte de ambulancia", onLogout = onBack)
+        HeaderApp(title = "Reporte de ambulancia", onAction = onBack)
 
         LazyColumn(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             item {
@@ -811,7 +490,7 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     if (viewModel.emergencyState is EmergencyUIState.Loading) {
-                        CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
                     } else {
                         Text("GUARDAR", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Black)
                         Spacer(Modifier.width(8.dp))
@@ -852,19 +531,24 @@ fun NuevaEmergenciaScreen(viewModel: EmergencyViewModel, onBack: () -> Unit) {
                 },
                 text = {
                     Box(Modifier.fillMaxWidth().height(400.dp)) {
-                        OsmMapView (
+                        OsmMapView(
                             center = selectedLocation,
                             onMapReady = { map ->
-                                map.addMapListener(object : MapListener {
-                                    override fun onScroll(event: ScrollEvent): Boolean {
+                                map.setOnClickListener {
+                                    // El mapa de osmdroid maneja clics internamente
+                                }
+                                // Listener para capturar el centro cuando el mapa se mueve
+                                map.addMapListener(object : org.osmdroid.events.MapListener {
+                                    override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
                                         val center = map.mapCenter as GeoPoint
                                         selectedLocation = center
                                         return true
                                     }
-                                    override fun onZoom(event: ZoomEvent): Boolean = true
+                                    override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean = true
                                 })
                             }
                         )
+                        // Icono de mira en el centro
                         Icon(
                             Icons.Default.Add,
                             contentDescription = null,
@@ -927,6 +611,7 @@ fun FieldInput(
 @Composable
 fun DropdownField(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
@@ -995,7 +680,11 @@ fun SignatureBox(base64: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun HeaderApp(title: String = "BENEMÉRITO CUERPO DE BOMBEROS VOLUNTARIOS DE GUATEMALA", onLogout: () -> Unit) {
+fun HeaderApp(
+    title: String = "BENEMÉRITO CUERPO DE BOMBEROS VOLUNTARIOS DE GUATEMALA", 
+    icon: ImageVector = Icons.AutoMirrored.Filled.Logout,
+    onAction: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().background(Color(0xFFE30613)).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1003,7 +692,7 @@ fun HeaderApp(title: String = "BENEMÉRITO CUERPO DE BOMBEROS VOLUNTARIOS DE GUA
         Image(painter = painterResource(id = R.drawable.logo), contentDescription = null, modifier = Modifier.size(45.dp))
         Spacer(Modifier.width(10.dp))
         Text(title, color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp, modifier = Modifier.weight(1f))
-        IconButton(onClick = onLogout) { Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White) }
+        IconButton(onClick = onAction) { Icon(icon, null, tint = Color.White) }
     }
 }
 
@@ -1020,26 +709,116 @@ fun BottomNavBar(currentScreen: String, onHome: () -> Unit, onProfile: () -> Uni
 }
 
 @Composable
-fun AdminHomeScreen(onList: () -> Unit, onVerFuerzaActiva: () -> Unit, onLogout: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        HeaderApp(title = "PANEL DE OFICIAL", onLogout = onLogout)
-        Column(Modifier.padding(24.dp)) {
-            MainButton("VER TODOS\nLOS REPORTES", Icons.Default.Assignment, onList)
-            Spacer(modifier = Modifier.height(12.dp))
-            MainButton("VER FUERZA\nACTIVA", Icons.Default.Group, onVerFuerzaActiva)
+fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onLogout: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
+        HeaderApp(onAction = onLogout)
+        
+        Text(
+            "BIENVENIDO OFICIAL",
+            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            textAlign = TextAlign.Center,
+            color = Color.White,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
+            color = Color.White
+        ) {
+            Column(Modifier.padding(24.dp)) {
+                Text(
+                    "¿QUE DESEA REALIZAR?",
+                    color = Color(0xFFE30613),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.height(20.dp))
+
+                AdminMenuButton("VER TODOS LOS\nCONTROLES", Icons.Default.Shield, onList)
+                AdminMenuButton("VER FUERZA ACTIVA", Icons.Default.Person, {})
+                AdminMenuButton("VER UNIDADES", Icons.Default.LocalShipping, onUnidades)
+
+                Spacer(Modifier.weight(1f))
+
+                // Últimos Controles Section
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "ÚLTIMOS CONTROLES",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(Color.White, RoundedCornerShape(20.dp))
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(Color.White, RoundedCornerShape(20.dp))
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+fun AdminMenuButton(text: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(65.dp)
+                .background(Color(0xFFE30613), RoundedCornerShape(15.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(35.dp)
+            )
+        }
+        Spacer(Modifier.width(20.dp))
+        Text(
+            text = text,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black,
+            lineHeight = 22.sp,
+            color = Color.Black
+        )
     }
 }
 
 @Composable
 fun AdminListScreen(viewModel: AdminViewModel, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxWidth().background(Color(0xFFE30613)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-            Text("HISTORIAL GENERAL", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
-        }
+        HeaderApp(title = "HISTORIAL GENERAL", icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
+        
         if (viewModel.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color.Red) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Red) }
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(8.dp)) {
                 items(viewModel.emergencies) { em ->
@@ -1056,6 +835,533 @@ fun AdminListScreen(viewModel: AdminViewModel, onBack: () -> Unit) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminUnidadesScreen(onBack: () -> Unit, onAdd: () -> Unit, onUnitClick: (Unidad) -> Unit) {
+    var searchText by remember { mutableStateOf("") }
+    var unidades by remember { mutableStateOf<List<Unidad>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("unidad")
+                .get()
+                .await()
+            unidades = snapshot.documents.mapNotNull { it.toObject(Unidad::class.java)?.copy(id = it.id) }
+        } catch (e: Exception) {
+            // Error handling
+        } finally {
+            isLoading = false
+        }
+    }
+
+    val filteredUnidades = unidades.filter { it.numero.contains(searchText, ignoreCase = true) }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
+        HeaderApp(icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
+        
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .background(Color.White, RoundedCornerShape(25.dp)),
+                placeholder = { 
+                    Text(
+                        "INGRESE EL NUMERO DE LA UNIDAD", 
+                        fontSize = 12.sp, 
+                        fontWeight = FontWeight.Black,
+                        color = Color.Gray
+                    ) 
+                },
+                trailingIcon = { Icon(Icons.Default.Search, null, tint = Color.Black) },
+                shape = RoundedCornerShape(25.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
+                ),
+                singleLine = true
+            )
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Red)
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        items(filteredUnidades) { unidad ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onUnitClick(unidad) }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(65.dp)
+                                        .background(Color(0xFFE30613), RoundedCornerShape(15.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocalShipping,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(35.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(20.dp))
+                                Text(
+                                    "UNIDAD ${unidad.numero}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = onAdd,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .border(1.dp, Color.Black, RoundedCornerShape(20.dp)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613)),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text(
+                        "AGREGAR NUEVA\nUNIDAD",
+                        textAlign = TextAlign.Center,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuccess: () -> Unit) {
+    var numero by remember { mutableStateOf(unidadAEditar?.numero ?: "") }
+    var tipo by remember { mutableStateOf(unidadAEditar?.tipo ?: "") }
+    var placa by remember { mutableStateOf(unidadAEditar?.placa ?: "") }
+    var marca by remember { mutableStateOf(unidadAEditar?.marca ?: "") }
+    var modelo by remember { mutableStateOf(unidadAEditar?.modelo ?: "") }
+    var fechaRegistro by remember { mutableStateOf(unidadAEditar?.fechaRegistro ?: "") }
+    var colorU by remember { mutableStateOf(unidadAEditar?.color ?: "") }
+    var estadoU by remember { mutableStateOf(unidadAEditar?.estado ?: "") }
+    
+    var isLoading by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+    
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val tiposUnidadList = listOf("AUTOBOMBA LIVIANA", "AUTOBOMBA PESADA", "CAMION NODRIZA-CISTERNA", "CAMION FORESTAL", "RESCATE TECNICO", "CAMION AUTOESCALA", "RESCATE ACUATICO", "AMBULANCIA SOPORTE BASICO", "AMBULANCIA SOPORTE AVANZADO", "MATERIALES PELIGROSOS", "COMANDO-COMUNICACIONES")
+    val marcasList = listOf("ROSENBAUER", "MERCEDES-BENZ", "VOLVO", "FREIGHTLINER", "ISUZU", "HINO", "FORD", "CHEVROLET", "RAM", "TOYOTA")
+    val coloresList = listOf("ROJO Y BLANCO", "AMARILLO LIMON Y VERDE FLUOR", "ROJO Y AMARILLO FLUOR", "BLANCO Y AZUL", "AMARILLO Y NEGRO", "ROJO Y AMARILLO")
+    val estadosList = listOf("EXCELENTE", "BUENO", "REGULAR", "MALO", "CRITICO(DEFECTUOSO)")
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        fechaRegistro = sdf.format(Date(it))
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("CANCELAR")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        HeaderApp(icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(8.dp, Color(0xFFE30613), RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFE30613))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (unidadAEditar != null) "EDITAR DATOS" else "INGRESE LOS DATOS",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        )
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentPadding = PaddingValues(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        item {
+                            FieldLabelAdmin("NUMERO DE UNIDAD")
+                            FieldInputAdmin(numero, "ESCRIBIR", KeyboardOptions(keyboardType = KeyboardType.Number)) { numero = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("TIPO DE UNIDAD")
+                            DropdownFieldAdmin("SELECCIONAR", tiposUnidadList, tipo) { tipo = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("NUMERO DE PLACA")
+                            FieldInputAdmin(placa, "ESCRIBIR") { placa = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("MARCA")
+                            DropdownFieldAdmin("SELECCIONAR", marcasList, marca) { marca = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("MODELO")
+                            FieldInputAdmin(modelo, "ESCRIBIR", KeyboardOptions(keyboardType = KeyboardType.Number)) { modelo = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("FECHA DE REGISTRO")
+                            Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
+                                FieldInputAdmin(fechaRegistro, "SELECCIONAR", enabled = false) { }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("COLOR")
+                            DropdownFieldAdmin("SELECCIONAR", coloresList, colorU) { colorU = it }
+
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("ESTADO DE LA UNIDAD")
+                            DropdownFieldAdmin("SELECCIONAR", estadosList, estadoU) { estadoU = it }
+
+                            Spacer(Modifier.height(40.dp))
+
+                            Button(
+                                onClick = {
+                                    if (numero.isBlank() || placa.isBlank()) {
+                                        Toast.makeText(context, "Complete campos obligatorios", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            val nuevaUnidad = Unidad(
+                                                numero = numero,
+                                                tipo = tipo,
+                                                placa = placa,
+                                                marca = marca,
+                                                modelo = modelo,
+                                                fechaRegistro = fechaRegistro,
+                                                color = colorU,
+                                                estado = estadoU
+                                            )
+                                            val db = FirebaseFirestore.getInstance()
+                                            if (unidadAEditar != null) {
+                                                db.collection("unidad").document(unidadAEditar.id)
+                                                    .set(nuevaUnidad)
+                                                    .await()
+                                                Toast.makeText(context, "UNIDAD ACTUALIZADA", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                db.collection("unidad")
+                                                    .add(nuevaUnidad)
+                                                    .await()
+                                                Toast.makeText(context, "UNIDAD GUARDADA EXITOSAMENTE", Toast.LENGTH_SHORT).show()
+                                            }
+                                            onSuccess()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .width(180.dp)
+                                    .height(60.dp)
+                                    .border(1.dp, Color.Black, RoundedCornerShape(30.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613)),
+                                shape = RoundedCornerShape(30.dp),
+                                enabled = !isLoading
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                } else {
+                                    Text("GUARDAR", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, onDeleteSuccess: () -> Unit) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar Unidad", fontWeight = FontWeight.Bold) },
+            text = { Text("¿Está seguro que desea eliminar la unidad ${unidad.numero}? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        isDeleting = true
+                        scope.launch {
+                            try {
+                                FirebaseFirestore.getInstance().collection("unidad").document(unidad.id).delete().await()
+                                Toast.makeText(context, "Unidad eliminada", Toast.LENGTH_SHORT).show()
+                                onDeleteSuccess()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error al eliminar: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isDeleting = false
+                            }
+                        }
+                    }
+                ) {
+                    Text("ELIMINAR", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("CANCELAR")
+                }
+            }
+        )
+    }
+
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        HeaderApp(icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(8.dp, Color(0xFFE30613), RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFE30613))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "DETALLE DE UNIDAD",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        )
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                            .padding(24.dp)
+                    ) {
+                        item {
+                            DetalleItem("NÚMERO DE UNIDAD", unidad.numero)
+                            DetalleItem("TIPO DE UNIDAD", unidad.tipo)
+                            DetalleItem("NÚMERO DE PLACA", unidad.placa)
+                            DetalleItem("MARCA", unidad.marca)
+                            DetalleItem("MODELO", unidad.modelo)
+                            DetalleItem("FECHA DE REGISTRO", unidad.fechaRegistro)
+                            DetalleItem("COLOR", unidad.color)
+                            DetalleItem("ESTADO DE LA UNIDAD", unidad.estado)
+
+                            Spacer(Modifier.height(30.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = onEdit,
+                                    modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF90EE90)),
+                                    shape = RoundedCornerShape(25.dp)
+                                ) {
+                                    Text("EDITAR", color = Color.Black, fontWeight = FontWeight.Black)
+                                }
+                                Button(
+                                    onClick = { showDeleteDialog = true },
+                                    modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFBABA)),
+                                    shape = RoundedCornerShape(25.dp),
+                                    enabled = !isDeleting
+                                ) {
+                                    if (isDeleting) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Black)
+                                    else Text("ELIMINAR", color = Color.Black, fontWeight = FontWeight.Black)
+                                }
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+
+                            Button(
+                                onClick = onBack,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(55.dp)
+                                    .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613)),
+                                shape = RoundedCornerShape(25.dp)
+                            ) {
+                                Text("VOLVER", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DetalleItem(label: String, value: String) {
+    Column(Modifier.padding(vertical = 8.dp)) {
+        Text(text = label, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Gray)
+        Text(text = if (value.isEmpty()) "N/A" else value, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+        HorizontalDivider(modifier = Modifier.padding(top = 4.dp), thickness = 1.dp, color = Color.LightGray)
+    }
+}
+
+@Composable
+fun FieldLabelAdmin(text: String) {
+    Text(text, fontWeight = FontWeight.Black, fontSize = 14.sp, modifier = Modifier.padding(bottom = 4.dp))
+}
+
+@Composable
+fun FieldInputAdmin(
+    value: String, 
+    placeholder: String, 
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    enabled: Boolean = true,
+    onValue: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValue,
+        modifier = Modifier.fillMaxWidth().height(55.dp),
+        shape = RoundedCornerShape(15.dp),
+        placeholder = { Text(placeholder, color = Color.LightGray, fontSize = 13.sp) },
+        singleLine = true,
+        enabled = enabled,
+        keyboardOptions = keyboardOptions,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color.Gray,
+            unfocusedBorderColor = Color.Gray,
+            disabledBorderColor = Color.Gray,
+            disabledTextColor = Color.Black,
+            disabledPlaceholderColor = Color.LightGray
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownFieldAdmin(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text(label, color = Color.LightGray, fontSize = 13.sp) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth().height(55.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Gray,
+                unfocusedBorderColor = Color.Gray
+            )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
             }
         }
     }
