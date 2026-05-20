@@ -46,11 +46,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.Unidad
-import com.example.bomberosapp.ui.AdminViewModel
-import com.example.bomberosapp.ui.EmergencyUIState
-import com.example.bomberosapp.ui.EmergencyViewModel
-import com.example.bomberosapp.ui.LoginUIState
-import com.example.bomberosapp.ui.LoginViewModel
+import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.data.model.Paramedico
+import com.example.bomberosapp.ui.*
 import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
 import com.example.bomberosapp.ui.PacienteAcompananteScreen
 import com.example.bomberosapp.ui.components.SignatureDialog
@@ -69,9 +67,13 @@ class MainActivity : ComponentActivity() {
             val loginViewModel: LoginViewModel = viewModel()
             val emergencyViewModel: EmergencyViewModel = viewModel()
             val adminViewModel: AdminViewModel = viewModel()
+            val pilotoViewModel: PilotoViewModel = viewModel()
+            val paramedicoViewModel: ParamedicoViewModel = viewModel()
             
             var currentScreen by remember { mutableStateOf("login") }
             var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
+            var selectedPiloto by remember { mutableStateOf<Piloto?>(null) }
+            var selectedParamedico by remember { mutableStateOf<Paramedico?>(null) }
 
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
@@ -82,6 +84,13 @@ class MainActivity : ComponentActivity() {
                             "admin_nueva_unidad" -> "admin_unidades"
                             "admin_detalle_unidad" -> "admin_unidades"
                             "admin_editar_unidad" -> "admin_detalle_unidad"
+                            "admin_fuerza_activa" -> "admin_home"
+                            "admin_detalle_piloto" -> "admin_fuerza_activa"
+                            "admin_detalle_paramedico" -> "admin_fuerza_activa"
+                            "admin_editar_piloto" -> "admin_detalle_piloto"
+                            "admin_editar_paramedico" -> "admin_detalle_paramedico"
+                            "admin_seleccion_tipo" -> "admin_fuerza_activa"
+                            "admin_nuevo_elemento" -> "admin_seleccion_tipo"
                             "form" -> "home"
                             "form_paciente" -> "form"
                             else -> "login"
@@ -107,11 +116,122 @@ class MainActivity : ComponentActivity() {
                                 "admin_home" -> AdminHomeScreen(
                                     onList = { currentScreen = "admin_list" },
                                     onUnidades = { currentScreen = "admin_unidades" },
+                                    onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
                                     }
                                 )
+                                "admin_fuerza_activa" -> {
+                                    LaunchedEffect(Unit) {
+                                        pilotoViewModel.startObserving()
+                                        paramedicoViewModel.startObserving()
+                                    }
+                                    FuerzaActivaScreen(
+                                        pilotos = pilotoViewModel.pilotos,
+                                        paramedicos = paramedicoViewModel.paramedicos,
+                                        isLoading = pilotoViewModel.isLoading || paramedicoViewModel.isLoading,
+                                        onAgregarNuevoElemento = { currentScreen = "admin_seleccion_tipo" },
+                                        onVerDetallePiloto = { piloto ->
+                                            selectedPiloto = piloto
+                                            currentScreen = "admin_detalle_piloto"
+                                        },
+                                        onVerDetalleParamedico = { paramedico ->
+                                            selectedParamedico = paramedico
+                                            currentScreen = "admin_detalle_paramedico"
+                                        },
+                                        onVolver = { currentScreen = "admin_home" }
+                                    )
+                                }
+                                "admin_detalle_piloto" -> {
+                                    selectedPiloto?.let { piloto ->
+                                        DetallePilotoScreen(
+                                            piloto = piloto,
+                                            onVolverClick = { currentScreen = "admin_fuerza_activa" },
+                                            onEditarClick = { currentScreen = "admin_editar_piloto" },
+                                            onEliminarClick = {
+                                                pilotoViewModel.eliminarPiloto(piloto.id) {
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                "admin_detalle_paramedico" -> {
+                                    selectedParamedico?.let { para ->
+                                        DetalleParamedicoScreen(
+                                            paramedico = para,
+                                            onVolverClick = { currentScreen = "admin_fuerza_activa" },
+                                            onEditarClick = { currentScreen = "admin_editar_paramedico" },
+                                            onEliminarClick = {
+                                                paramedicoViewModel.eliminarParamedico(para.id) {
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                "admin_editar_piloto" -> {
+                                    selectedPiloto?.let { piloto ->
+                                        EditarPilotoScreen(
+                                            piloto = piloto,
+                                            onVolverClick = { currentScreen = "admin_detalle_piloto" },
+                                            onGuardarClick = { updated ->
+                                                pilotoViewModel.actualizarPiloto(updated) {
+                                                    selectedPiloto = updated
+                                                    currentScreen = "admin_detalle_piloto"
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                "admin_editar_paramedico" -> {
+                                    selectedParamedico?.let { para ->
+                                        EditarParamedicoScreen(
+                                            paramedico = para,
+                                            onVolverClick = { currentScreen = "admin_detalle_paramedico" },
+                                            onGuardarClick = { updated ->
+                                                paramedicoViewModel.actualizarParamedico(updated) {
+                                                    selectedParamedico = updated
+                                                    currentScreen = "admin_detalle_paramedico"
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                "admin_seleccion_tipo" -> {
+                                    SeleccionTipoElementoScreen(
+                                        onVolverClick = { currentScreen = "admin_fuerza_activa" },
+                                        onPilotoClick = {
+                                            currentScreen = "admin_nuevo_elemento_piloto"
+                                        },
+                                        onParamedicoClick = {
+                                            currentScreen = "admin_nuevo_elemento_paramedico"
+                                        }
+                                    )
+                                }
+                                "admin_nuevo_elemento_piloto" -> {
+                                    NuevoElementoScreen(
+                                        onVolverClick = { currentScreen = "admin_seleccion_tipo" },
+                                        onContinuarClick = { n, a, i, c, t, d ->
+                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
+                                                currentScreen = "admin_fuerza_activa"
+                                            }
+                                        }
+                                    )
+                                }
+                                "admin_nuevo_elemento_paramedico" -> {
+                                    NuevoElementoScreen(
+                                        onVolverClick = { currentScreen = "admin_seleccion_tipo" },
+                                        onContinuarClick = { n, a, i, c, t, d ->
+                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
+                                                currentScreen = "admin_fuerza_activa"
+                                            }
+                                        }
+                                    )
+                                }
                                 "admin_list" -> {
                                     LaunchedEffect(Unit) { adminViewModel.startObserving() }
                                     AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
@@ -190,6 +310,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(false) }
     val state = viewModel.loginState
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -223,11 +344,26 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
                         visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation()
                     )
 
-                    TextButton(onClick = { showPass = !showPass }) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if(showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(16.dp), tint = Color.Black)
-                            Spacer(Modifier.width(4.dp))
-                            Text("MOSTRAR CONTRASEÑA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            Checkbox(
+                                checked = rememberMe,
+                                onCheckedChange = { rememberMe = it },
+                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFE30613))
+                            )
+                            Text("RECORDARME", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        TextButton(onClick = { showPass = !showPass }) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if(showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                                Spacer(Modifier.width(4.dp))
+                                Text("MOSTRAR CONTRASEÑA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            }
                         }
                     }
 
@@ -332,7 +468,7 @@ fun BottomNavBar(currentScreen: String, onHome: () -> Unit, onProfile: () -> Uni
 }
 
 @Composable
-fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onLogout: () -> Unit) {
+fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onFuerzaActiva: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
         HeaderApp(onAction = onLogout)
         
@@ -360,7 +496,7 @@ fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onLogout: () -> 
                 Spacer(Modifier.height(20.dp))
 
                 AdminMenuButton("VER TODOS LOS\nCONTROLES", Icons.Default.Shield, onList)
-                AdminMenuButton("VER FUERZA ACTIVA", Icons.Default.Person, {})
+                AdminMenuButton("VER FUERZA ACTIVA", Icons.Default.Person, onFuerzaActiva)
                 AdminMenuButton("VER UNIDADES", Icons.Default.LocalShipping, onUnidades)
 
                 Spacer(Modifier.weight(1f))
