@@ -68,7 +68,7 @@ fun ParamedicoScreen(
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "DATOS DEL PARAMÉDICO", onLogout = onVolverClick)
+        HeaderApp(title = "DATOS DEL PARAMÉDICO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier

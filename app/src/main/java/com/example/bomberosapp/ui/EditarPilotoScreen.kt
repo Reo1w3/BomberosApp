@@ -43,7 +43,7 @@ fun EditarPilotoScreen(
     var turno by remember { mutableStateOf(piloto.turno) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "EDITAR ELEMENTO", onLogout = onVolverClick)
+        HeaderApp(title = "EDITAR ELEMENTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier

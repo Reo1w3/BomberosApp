@@ -1,6 +1,7 @@
 package com.example.bomberosapp.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -16,6 +17,10 @@ class EmergencyViewModel(
 ) : ViewModel() {
 
     var emergencyState by mutableStateOf<EmergencyUIState>(EmergencyUIState.Idle)
+        private set
+
+    // Form data
+    var formData = mutableStateMapOf<String, String>()
         private set
 
     var unidades by mutableStateOf<List<String>>(emptyList())
@@ -75,6 +80,7 @@ class EmergencyViewModel(
 
     fun resetState() {
         emergencyState = EmergencyUIState.Idle
+        formData.clear()
     }
 }
 

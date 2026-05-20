@@ -37,6 +37,8 @@ android {
         // Cargar API Key desde .env o local.properties
         val apiKey = env.getProperty("FIREBASE_API_KEY") ?: localProperties.getProperty("FIREBASE_API_KEY") ?: ""
         buildConfigField("String", "FIREBASE_API_KEY", "\"$apiKey\"")
+        
+        manifestPlaceholders["FIREBASE_API_KEY"] = apiKey
     }
 
     buildTypes {

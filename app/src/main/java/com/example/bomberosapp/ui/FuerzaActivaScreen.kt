@@ -46,7 +46,7 @@ fun FuerzaActivaScreen(
     onVolver: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "FUERZA ACTIVA", onLogout = onVolver)
+        HeaderApp(title = "FUERZA ACTIVA", onAction = onVolver)
 
         Column(
             modifier = Modifier

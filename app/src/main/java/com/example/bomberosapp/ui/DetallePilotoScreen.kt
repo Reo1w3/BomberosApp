@@ -43,7 +43,7 @@ fun DetallePilotoScreen(
     var mostrarDialogo by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "DETALLE DEL ELEMENTO", onLogout = onVolverClick)
+        HeaderApp(title = "DETALLE DEL ELEMENTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier

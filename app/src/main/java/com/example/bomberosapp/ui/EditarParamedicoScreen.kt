@@ -43,7 +43,7 @@ fun EditarParamedicoScreen(
     var turno by remember { mutableStateOf(paramedico.turno) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "EDITAR ELEMENTO", onLogout = onVolverClick)
+        HeaderApp(title = "EDITAR ELEMENTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier

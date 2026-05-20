@@ -1,61 +1,76 @@
 package com.example.bomberosapp.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.bomberosapp.R
+import com.example.bomberosapp.ui.components.OsmMapView
+import org.osmdroid.util.GeoPoint
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun NuevaEmergenciaScreen(
+    viewModel: EmergencyViewModel,
     onVolverClick: () -> Unit,
     onSiguienteClick: () -> Unit
 ) {
-    var horaSalida by remember { mutableStateOf("") }
-    var telefonoSolicitante by remember { mutableStateOf("") }
-    var nombreSolicitante by remember { mutableStateOf("") }
-    var tipoServicio by remember { mutableStateOf("") }
-    var direccionEmergencia by remember { mutableStateOf("") }
-    var nombrePaciente by remember { mutableStateOf("") }
-
+    val f = viewModel.formData
     val rojoBomberos = Color(0xFFE30613)
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+
+    var showMapDialog by remember { mutableStateOf(false) }
+    var selectedLocation by remember { mutableStateOf(GeoPoint(14.6349, -90.5069)) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.entries.all { it.value }
+        if (granted) {
+            Toast.makeText(context, "Permisos concedidos", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Permisos denegados", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadConfig()
+    }
+
+    val unidades = viewModel.unidades
+    val tiposServicio = viewModel.tiposServicio
 
     Column(
         modifier = Modifier
@@ -77,9 +92,7 @@ fun NuevaEmergenciaScreen(
                 modifier = Modifier.size(75.dp),
                 contentScale = ContentScale.Fit
             )
-
             Spacer(modifier = Modifier.width(14.dp))
-
             Text(
                 text = "Reporte de ambulancia",
                 color = Color.White,
@@ -101,61 +114,96 @@ fun NuevaEmergenciaScreen(
                 colors = CardDefaults.cardColors(containerColor = rojoBomberos),
                 border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            CampoNumeroEmergencia(
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Unidad", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            DropdownFieldSimple(unidades, f["unidad"] ?: "") { f["unidad"] = it }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            CampoTextoEmergencia(
                                 label = "Hora de salida",
-                                value = horaSalida,
-                                onValueChange = { horaSalida = it }
+                                value = f["hS"] ?: "",
+                                onValueChange = { f["hS"] = it },
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        f["hS"] = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                                    }) {
+                                        Icon(Icons.Default.AccessTime, "Hora actual")
+                                    }
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             CampoTelefonoEmergencia(
                                 label = "Teléfono del solicitante",
-                                value = telefonoSolicitante,
-                                onValueChange = { telefonoSolicitante = it }
+                                value = f["telS"] ?: "",
+                                onValueChange = { f["telS"] = it }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             CampoTextoEmergencia(
                                 label = "Nombre del solicitante",
-                                value = nombreSolicitante,
-                                onValueChange = { nombreSolicitante = it }
+                                value = f["nomS"] ?: "",
+                                onValueChange = { f["nomS"] = it }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            CampoTextoEmergencia(
-                                label = "Tipo de servicio",
-                                value = tipoServicio,
-                                onValueChange = { tipoServicio = it }
-                            )
+                            Text("Tipo de servicio", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                            DropdownFieldSimple(tiposServicio, f["tipS"] ?: "") { f["tipS"] = it }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             CampoTextoEmergencia(
                                 label = "Dirección de la emergencia",
-                                value = direccionEmergencia,
-                                onValueChange = { direccionEmergencia = it }
+                                value = f["dirE"] ?: "",
+                                onValueChange = { f["dirE"] = it },
+                                trailingIcon = {
+                                    Row {
+                                        IconButton(onClick = {
+                                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                                val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
+                                                try {
+                                                    val location = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) 
+                                                        ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                                                    
+                                                    if (location != null) {
+                                                        f["dirE"] = "${location.latitude}, ${location.longitude}"
+                                                        selectedLocation = GeoPoint(location.latitude, location.longitude)
+                                                        Toast.makeText(context, "Ubicación obtenida", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "No se pudo obtener la ubicación. Active el GPS.", Toast.LENGTH_LONG).show()
+                                                    }
+                                                } catch (e: SecurityException) {
+                                                    Toast.makeText(context, "Error de permisos", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } else {
+                                                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                            }
+                                        }) {
+                                            Icon(Icons.Default.LocationOn, "Ubicación actual")
+                                        }
+                                        IconButton(onClick = { showMapDialog = true }) {
+                                            Icon(Icons.Default.Map, "Abrir mapa")
+                                        }
+                                    }
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             CampoTextoEmergencia(
                                 label = "Nombre del paciente",
-                                value = nombrePaciente,
-                                onValueChange = { nombrePaciente = it }
+                                value = f["nomP"] ?: "",
+                                onValueChange = { f["nomP"] = it }
                             )
                         }
                     }
@@ -200,8 +248,91 @@ fun NuevaEmergenciaScreen(
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    if (showMapDialog) {
+        AlertDialog(
+            onDismissRequest = { showMapDialog = false },
+            confirmButton = {
+                Button(onClick = {
+                    f["dirE"] = "${selectedLocation.latitude}, ${selectedLocation.longitude}"
+                    showMapDialog = false
+                }) {
+                    Text("SELECCIONAR UBICACIÓN")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMapDialog = false }) {
+                    Text("CANCELAR")
+                }
+            },
+            text = {
+                Box(Modifier.fillMaxWidth().height(400.dp)) {
+                    OsmMapView(
+                        center = selectedLocation,
+                        onMapReady = { map ->
+                            map.addMapListener(object : org.osmdroid.events.MapListener {
+                                override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
+                                    val center = map.mapCenter as GeoPoint
+                                    selectedLocation = center
+                                    return true
+                                }
+                                override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean = true
+                            })
+                        }
+                    )
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.align(Alignment.Center).size(32.dp),
+                        tint = Color.Red
+                    )
+                }
+            },
+            title = { Text("Mueve el mapa para ubicar") }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownFieldSimple(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text("Seleccionar") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFFE30613),
+                unfocusedBorderColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
@@ -210,24 +341,19 @@ fun NuevaEmergenciaScreen(
 fun CampoTextoEmergencia(
     label: String,
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
+        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         Spacer(modifier = Modifier.height(6.dp))
-
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
+            trailingIcon = trailingIcon,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFFE30613),
                 unfocusedBorderColor = Color.Gray,
@@ -245,48 +371,8 @@ fun CampoTelefonoEmergencia(
     onValueChange: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
+        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE30613),
-                unfocusedBorderColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            )
-        )
-    }
-}
-
-@Composable
-fun CampoNumeroEmergencia(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
