@@ -35,7 +35,7 @@ class ParamedicoViewModel : ViewModel() {
     }
 
     fun eliminarParamedico(id: String, onSuccess: () -> Unit) {
-        db.collection("paramedicos")
+        db.collection("paramedico")
             .document(id)
             .delete()
             .addOnSuccessListener {
@@ -44,7 +44,7 @@ class ParamedicoViewModel : ViewModel() {
     }
 
     fun actualizarParamedico(paramedico: Paramedico, onSuccess: () -> Unit) {
-        db.collection("paramedicos")
+        db.collection("paramedico")
             .document(paramedico.id)
             .set(paramedico)
             .addOnSuccessListener {
@@ -53,7 +53,7 @@ class ParamedicoViewModel : ViewModel() {
     }
 
     private fun getParamedicosFlow(): Flow<List<Paramedico>> = callbackFlow {
-        val registration = db.collection("paramedicos")
+        val registration = db.collection("paramedico")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     close(e)

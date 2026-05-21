@@ -35,7 +35,7 @@ class PilotoViewModel : ViewModel() {
     }
 
     fun eliminarPiloto(id: String, onSuccess: () -> Unit) {
-        db.collection("pilotos")
+        db.collection("piloto")
             .document(id)
             .delete()
             .addOnSuccessListener {
@@ -44,7 +44,7 @@ class PilotoViewModel : ViewModel() {
     }
 
     fun actualizarPiloto(piloto: Piloto, onSuccess: () -> Unit) {
-        db.collection("pilotos")
+        db.collection("piloto")
             .document(piloto.id)
             .set(piloto)
             .addOnSuccessListener {
@@ -53,7 +53,7 @@ class PilotoViewModel : ViewModel() {
     }
 
     private fun getPilotosFlow(): Flow<List<Piloto>> = callbackFlow {
-        val registration = db.collection("pilotos")
+        val registration = db.collection("piloto")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     close(e)

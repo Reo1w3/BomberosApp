@@ -1,27 +1,24 @@
 package com.example.bomberosapp.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bomberosapp.R
+import com.example.bomberosapp.HeaderApp
+import com.example.bomberosapp.ui.components.CampoTextoEmergencia
+import com.example.bomberosapp.ui.components.DropdownFieldSimple
+import com.example.bomberosapp.ui.theme.Blanco
+import com.example.bomberosapp.ui.theme.RojoBomberos
 
 @Composable
 fun PacienteAcompananteScreen(
@@ -29,296 +26,76 @@ fun PacienteAcompananteScreen(
     onVolverClick: () -> Unit,
     onSiguienteClick: () -> Unit
 ) {
-    val f = viewModel.formData
-    val rojoBomberos = Color(0xFFE30613)
-    val rosadoBoton = Color(0xFFFFD9DC)
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Blanco)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(rojoBomberos)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = null,
-                modifier = Modifier.size(75.dp),
-                contentScale = ContentScale.Fit
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Reporte de ambulancia",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        HeaderApp(title = "DATOS DEL PACIENTE", onAction = onVolverClick)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Sección Paciente
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = rojoBomberos),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+                modifier = Modifier.fillMaxWidth().border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Fallecidos:", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                BotonOpcion(
-                                    texto = "Sí",
-                                    seleccionado = f["fall"] == "true",
-                                    onClick = { f["fall"] = "true" },
-                                    colorSeleccionado = rosadoBoton
-                                )
-                                BotonOpcion(
-                                    texto = "No",
-                                    seleccionado = f["fall"] != "true",
-                                    onClick = { f["fall"] = "false" },
-                                    colorSeleccionado = rosadoBoton
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CampoDropdownSexo(
-                                label = "Sexo del paciente",
-                                valorSeleccionado = f["sexP"] ?: "",
-                                opciones = listOf("Masculino", "Femenino"),
-                                onSeleccionar = { f["sexP"] = it }
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CampoTextoFormulario(
-                                label = "Domicilio del paciente",
-                                value = f["domP"] ?: "",
-                                onValueChange = { f["domP"] = it }
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text("Acompañante:", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                BotonOpcion(
-                                    texto = "Sí",
-                                    seleccionado = f["tieAco"] == "true",
-                                    onClick = { f["tieAco"] = "true" },
-                                    colorSeleccionado = rosadoBoton
-                                )
-                                BotonOpcion(
-                                    texto = "No",
-                                    seleccionado = f["tieAco"] != "true",
-                                    onClick = {
-                                        f["tieAco"] = "false"
-                                        f["nomA"] = ""
-                                        f["apeA"] = ""
-                                        f["telA"] = ""
-                                    },
-                                    colorSeleccionado = rosadoBoton
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CampoTextoFormulario(
-                                label = "Nombre del acompañante",
-                                value = f["nomA"] ?: "",
-                                onValueChange = { f["nomA"] = it },
-                                enabled = f["tieAco"] == "true"
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CampoTextoFormulario(
-                                label = "Apellido del acompañante",
-                                value = f["apeA"] ?: "",
-                                onValueChange = { f["apeA"] = it },
-                                enabled = f["tieAco"] == "true"
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CampoTelefonoFormulario(
-                                label = "Teléfono del acompañante",
-                                value = f["telA"] ?: "",
-                                onValueChange = { f["telA"] = it },
-                                enabled = f["tieAco"] == "true"
-                            )
-                        }
-                    }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("DATOS DEL PACIENTE", fontWeight = FontWeight.Black, color = RojoBomberos)
+                    
+                    CampoTextoEmergencia(label = "Nombre Completo", value = viewModel.nombrePaciente, onValueChange = { viewModel.nombrePaciente = it })
+                    CampoTextoEmergencia(label = "Domicilio", value = viewModel.domicilioPaciente, onValueChange = { viewModel.domicilioPaciente = it })
+                    CampoTextoEmergencia(label = "Edad", value = viewModel.edadPaciente, onValueChange = { viewModel.edadPaciente = it })
+                    
+                    Text("Sexo", fontWeight = FontWeight.Bold)
+                    DropdownFieldSimple(listOf("Masculino", "Femenino"), viewModel.sexoPaciente) { viewModel.sexoPaciente = it }
+                    
+                    CampoTextoEmergencia(label = "Estado del Paciente", value = viewModel.estadoPaciente, onValueChange = { viewModel.estadoPaciente = it })
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Sección Acompañante
+            Card(
+                modifier = Modifier.fillMaxWidth().border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("DATOS DEL ACOMPAÑANTE", fontWeight = FontWeight.Black, color = RojoBomberos)
+                    
+                    CampoTextoEmergencia(label = "Nombre(s)", value = viewModel.nombreAcompanante, onValueChange = { viewModel.nombreAcompanante = it })
+                    CampoTextoEmergencia(label = "Apellido(s)", value = viewModel.apellidoAcompanante, onValueChange = { viewModel.apellidoAcompanante = it })
+                    CampoTextoEmergencia(label = "Teléfono", value = viewModel.telefonoAcompanante, onValueChange = { viewModel.telefonoAcompanante = it })
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = onVolverClick,
                     modifier = Modifier.weight(1f).height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(text = "VOLVER", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("VOLVER", color = Blanco)
                 }
-
                 Button(
                     onClick = onSiguienteClick,
                     modifier = Modifier.weight(1f).height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = rojoBomberos),
-                    shape = RoundedCornerShape(14.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(text = "SIGUIENTE", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-fun BotonOpcion(
-    texto: String,
-    seleccionado: Boolean,
-    onClick: () -> Unit,
-    colorSeleccionado: Color
-) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (seleccionado) colorSeleccionado else Color(0xFFF4F4F4)
-        ),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Text(
-            text = texto,
-            color = Color.Black,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-fun CampoTextoFormulario(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    enabled: Boolean = true
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(modifier = Modifier.height(6.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE30613),
-                unfocusedBorderColor = Color.Gray,
-                disabledBorderColor = Color.LightGray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color(0xFFF3F3F3)
-            )
-        )
-    }
-}
-
-@Composable
-fun CampoTelefonoFormulario(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    enabled: Boolean = true
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(modifier = Modifier.height(6.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE30613),
-                unfocusedBorderColor = Color.Gray,
-                disabledBorderColor = Color.LightGray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color(0xFFF3F3F3)
-            )
-        )
-    }
-}
-
-@Composable
-fun CampoDropdownSexo(
-    label: String,
-    valorSeleccionado: String,
-    opciones: List<String>,
-    onSeleccionar: (String) -> Unit
-) {
-    var expandido by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(modifier = Modifier.height(6.dp))
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color.Gray, RoundedCornerShape(14.dp))
-                    .clickable { expandido = true }
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = if (valorSeleccionado.isEmpty()) "Seleccionar" else valorSeleccionado,
-                    color = if (valorSeleccionado.isEmpty()) Color.Gray else Color.Black
-                )
-            }
-            DropdownMenu(
-                expanded = expandido,
-                onDismissRequest = { expandido = false }
-            ) {
-                opciones.forEach { opcion ->
-                    DropdownMenuItem(
-                        text = { Text(opcion) },
-                        onClick = {
-                            onSeleccionar(opcion)
-                            expandido = false
-                        }
-                    )
+                    Text("SIGUIENTE (TRASLADO)", color = Blanco)
                 }
             }
         }

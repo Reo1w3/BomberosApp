@@ -1,30 +1,17 @@
 package com.example.bomberosapp.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.Blanco
+import com.example.bomberosapp.ui.theme.RojoClaro
 
 @Composable
 fun DetalleParamedicoScreen(
@@ -42,66 +32,96 @@ fun DetalleParamedicoScreen(
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(Blanco)) {
         HeaderApp(title = "DETALLE DEL ELEMENTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .padding(bottom = 90.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFEDEAF0))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "INFORMACIÓN COMPLETA",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE30613)
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(RojoBomberos)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "DETALLE DE ELEMENTO",
+                            color = Blanco,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp)
+                    ) {
+                        CampoDetalle("NOMBRES", paramedico.nombres)
+                        CampoDetalle("APELLIDOS", paramedico.apellidos)
+                        CampoDetalle("NÚMERO DE IDENTIFICACIÓN", paramedico.numeroIdentificacion)
+                        CampoDetalle("CÓDIGO DE ELEMENTO", paramedico.codigoElemento)
+                        CampoDetalle("TELÉFONO", paramedico.telefono)
+                        CampoDetalle("DIRECCIÓN", paramedico.direccion)
+                        CampoDetalle("TIPO DE ELEMENTO", paramedico.tipoElemento)
+                        CampoDetalle("ESPECIALIDAD", paramedico.especialidad)
+                        CampoDetalle("CERTIFICACIÓN", paramedico.certificacion)
+                        CampoDetalle("AÑOS DE EXPERIENCIA", paramedico.experiencia)
+                        CampoDetalle("TURNO", paramedico.turno)
 
-                    CampoDetalle("Nombres", paramedico.nombres)
-                    CampoDetalle("Apellidos", paramedico.apellidos)
-                    CampoDetalle("Número de identificación", paramedico.numeroIdentificacion)
-                    CampoDetalle("Código de elemento", paramedico.codigoElemento)
-                    CampoDetalle("Teléfono", paramedico.telefono)
-                    CampoDetalle("Dirección", paramedico.direccion)
-                    CampoDetalle("Tipo de elemento", paramedico.tipoElemento)
-                    CampoDetalle("Especialidad", paramedico.especialidad)
-                    CampoDetalle("Certificación", paramedico.certificacion)
-                    CampoDetalle("Años de experiencia", paramedico.experiencia)
-                    CampoDetalle("Turno", paramedico.turno)
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = onEditarClick,
+                                modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF90EE90)),
+                                shape = RoundedCornerShape(25.dp)
+                            ) {
+                                Text("EDITAR", color = Color.Black, fontWeight = FontWeight.Black)
+                            }
+                            Button(
+                                onClick = { mostrarDialogo = true },
+                                modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = RojoClaro),
+                                shape = RoundedCornerShape(25.dp)
+                            ) {
+                                Text("ELIMINAR", color = Color.Black, fontWeight = FontWeight.Black)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = onVolverClick,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(55.dp)
+                                .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                            colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                            shape = RoundedCornerShape(25.dp)
+                        ) {
+                            Text("VOLVER", color = Blanco, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        }
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = onEditarClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
-            ) {
-                Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
-                Text(" EDITAR DATOS", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { mostrarDialogo = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                Text(" ELIMINAR", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

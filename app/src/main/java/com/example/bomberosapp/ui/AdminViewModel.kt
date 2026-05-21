@@ -42,7 +42,7 @@ class AdminViewModel : ViewModel() {
     }
 
     private fun getEmergenciesFlow(): Flow<List<Emergency>> = callbackFlow {
-        val registration = db.collection("emergencias")
+        val registration = db.collection("emergencia")
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {

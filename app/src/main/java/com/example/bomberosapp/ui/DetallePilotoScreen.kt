@@ -26,12 +26,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Piloto
+
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.GrisCard
+import com.example.bomberosapp.ui.theme.Blanco
+import com.example.bomberosapp.ui.theme.RojoClaro
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun DetallePilotoScreen(
@@ -42,86 +54,96 @@ fun DetallePilotoScreen(
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(Blanco)) {
         HeaderApp(title = "DETALLE DEL ELEMENTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .padding(bottom = 90.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFEDEAF0)
-                )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "INFORMACIÓN COMPLETA",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE30613)
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(RojoBomberos)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "DETALLE DE ELEMENTO",
+                            color = Blanco,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(24.dp)
+                        ) {
+                            CampoDetalle("NOMBRES", piloto.nombres)
+                            CampoDetalle("APELLIDOS", piloto.apellidos)
+                            CampoDetalle("NÚMERO DE IDENTIFICACIÓN", piloto.numeroIdentificacion)
+                            CampoDetalle("CÓDIGO DE ELEMENTO", piloto.codigoElemento)
+                            CampoDetalle("TELÉFONO", piloto.telefono)
+                            CampoDetalle("DIRECCIÓN", piloto.direccion)
+                            CampoDetalle("TIPO DE ELEMENTO", piloto.tipoElemento)
+                            CampoDetalle("TIPO DE LICENCIA", piloto.tipoLicencia)
+                            CampoDetalle("NÚMERO DE LICENCIA", piloto.numeroLicencia)
+                            CampoDetalle("FECHA DE VENCIMIENTO", piloto.fechaVencimiento)
+                            CampoDetalle("TURNO", piloto.turno)
 
-                    CampoDetalle("Nombres", piloto.nombres)
-                    CampoDetalle("Apellidos", piloto.apellidos)
-                    CampoDetalle("Número de identificación", piloto.numeroIdentificacion)
-                    CampoDetalle("Código de elemento", piloto.codigoElemento)
-                    CampoDetalle("Teléfono", piloto.telefono)
-                    CampoDetalle("Dirección", piloto.direccion)
-                    CampoDetalle("Tipo de elemento", piloto.tipoElemento)
-                    CampoDetalle("Tipo de licencia", piloto.tipoLicencia)
-                    CampoDetalle("Número de licencia", piloto.numeroLicencia)
-                    CampoDetalle("Fecha de vencimiento", piloto.fechaVencimiento)
-                    CampoDetalle("Turno", piloto.turno)
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = onEditarClick,
+                                    modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF90EE90)),
+                                    shape = RoundedCornerShape(25.dp)
+                                ) {
+                                    Text("EDITAR", color = Color.Black, fontWeight = FontWeight.Black)
+                                }
+                                Button(
+                                    onClick = { mostrarDialogo = true },
+                                    modifier = Modifier.weight(1f).height(50.dp).border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = RojoClaro),
+                                    shape = RoundedCornerShape(25.dp)
+                                ) {
+                                    Text("ELIMINAR", color = Color.Black, fontWeight = FontWeight.Black)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Button(
+                                onClick = onVolverClick,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(55.dp)
+                                    .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                                shape = RoundedCornerShape(25.dp)
+                            ) {
+                                Text("VOLVER", color = Blanco, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            }
+                        }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = onEditarClick,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Text(
-                    text = " EDITAR DATOS",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = {
-                    mostrarDialogo = true
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Text(
-                    text = " ELIMINAR",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }
@@ -163,22 +185,21 @@ fun DetallePilotoScreen(
 
 @Composable
 fun CampoDetalle(label: String, valor: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
             text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Black,
             color = Color.Gray
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
-
         Text(
             text = if (valor.isBlank()) "Sin dato" else valor,
-            fontSize = 16.sp,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
             color = Color.Black
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = 4.dp), thickness = 1.dp, color = Color.LightGray)
     }
 }

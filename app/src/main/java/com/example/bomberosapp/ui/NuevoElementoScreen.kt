@@ -3,6 +3,8 @@ package com.example.bomberosapp.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,10 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -40,10 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.R
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.example.bomberosapp.ui.theme.Blanco
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.RojoClaro
 
 @Composable
 fun NuevoElementoScreen(
@@ -64,49 +70,19 @@ fun NuevoElementoScreen(
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
 
-    val rojoBomberos = Color(0xFFE30613)
-    val rosadoBoton = Color(0xFFE98A8A)
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Blanco)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(rojoBomberos)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = null,
-                modifier = Modifier.size(42.dp),
-                contentScale = ContentScale.Fit
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Text(
-                text = "Registro de nuevo\nelemento",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(onClick = onVolverClick) {
-                Icon(
-                    imageVector = Icons.Default.Logout,
-                    contentDescription = "Volver",
-                    tint = Color.White
-                )
-            }
-        }
+        HeaderApp(
+            title = "REGISTRO DE NUEVO ELEMENTO",
+            onAction = onVolverClick
+        )
 
         Column(
             modifier = Modifier
@@ -116,112 +92,123 @@ fun NuevoElementoScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = rojoBomberos),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "INGRESE LOS DATOS",
-                                color = rojoBomberos,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    Text(
+                        text = "INGRESE LOS DATOS",
+                        color = RojoBomberos,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                            CampoNuevoElemento(
-                                label = "NOMBRES",
-                                value = nombres,
-                                onValueChange = { nombres = it }
-                            )
+                    CampoNuevoElemento(
+                        label = "NOMBRES",
+                        value = nombres,
+                        onValueChange = { nombres = it }
+                    )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                            CampoNuevoElemento(
-                                label = "APELLIDOS",
-                                value = apellidos,
-                                onValueChange = { apellidos = it }
-                            )
+                    CampoNuevoElemento(
+                        label = "APELLIDOS",
+                        value = apellidos,
+                        onValueChange = { apellidos = it }
+                    )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                            CampoNuevoElementoNumero(
-                                label = "NUMERO DE IDENTIFICACION PERSONAL",
-                                value = numeroIdentificacion,
-                                onValueChange = { numeroIdentificacion = it }
-                            )
+                    CampoNuevoElementoNumero(
+                        label = "NÚMERO DE IDENTIFICACIÓN PERSONAL",
+                        value = numeroIdentificacion,
+                        onValueChange = { numeroIdentificacion = it }
+                    )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                            CampoNuevoElementoNumero(
-                                label = "INGRESE CODIGO DE ELEMENTO",
-                                value = codigoElemento,
-                                onValueChange = { codigoElemento = it }
-                            )
+                    CampoNuevoElementoNumero(
+                        label = "INGRESE CÓDIGO DE ELEMENTO",
+                        value = codigoElemento,
+                        onValueChange = { codigoElemento = it }
+                    )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                            CampoNuevoElementoNumero(
-                                label = "TELEFONO",
-                                value = telefono,
-                                onValueChange = { telefono = it }
-                            )
+                    CampoNuevoElementoNumero(
+                        label = "TELÉFONO",
+                        value = telefono,
+                        onValueChange = { telefono = it }
+                    )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                            CampoNuevoElemento(
-                                label = "DIRECCION",
-                                value = direccion,
-                                onValueChange = { direccion = it }
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            Button(
-                                onClick = {
-                                    onContinuarClick(
-                                        nombres,
-                                        apellidos,
-                                        numeroIdentificacion,
-                                        codigoElemento,
-                                        telefono,
-                                        direccion
-                                    )
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = rosadoBoton),
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                Text(
-                                    text = "CONTINUAR",
-                                    color = Color.Black,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
+                    CampoNuevoElemento(
+                        label = "DIRECCIÓN",
+                        value = direccion,
+                        onValueChange = { direccion = it }
+                    )
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = onVolverClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text(
+                        text = "VOLVER",
+                        color = Blanco,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        onContinuarClick(
+                            nombres,
+                            apellidos,
+                            numeroIdentificacion,
+                            codigoElemento,
+                            telefono,
+                            direccion
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text(
+                        text = "CONTINUAR",
+                        color = Blanco,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
-
-
         }
     }
 }
@@ -248,10 +235,10 @@ fun CampoNuevoElemento(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
 
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE0BABA),
-                unfocusedBorderColor = Color(0xFFE0BABA),
+                focusedBorderColor = RojoBomberos,
+                unfocusedBorderColor = Color.Gray,
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White
             )

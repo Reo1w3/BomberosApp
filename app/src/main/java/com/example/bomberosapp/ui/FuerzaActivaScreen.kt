@@ -1,17 +1,24 @@
 package com.example.bomberosapp.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocalHospital
@@ -27,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.Blanco
 
 @Composable
 fun FuerzaActivaScreen(
@@ -45,173 +55,186 @@ fun FuerzaActivaScreen(
     onVerDetalleParamedico: (Paramedico) -> Unit,
     onVolver: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Blanco)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
         HeaderApp(title = "FUERZA ACTIVA", onAction = onVolver)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .padding(bottom = 90.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "ELEMENTOS REGISTRADOS",
+                        color = RojoBomberos,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    )
+
+                    if (isLoading) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = RojoBomberos)
+                        }
+                    } else if (pilotos.isEmpty() && paramedicos.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "No hay elementos registrados",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (pilotos.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        "PILOTOS",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.sp,
+                                        color = RojoBomberos,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                                items(pilotos) { piloto ->
+                                    CardElementoSimple(
+                                        nombre = "${piloto.nombres} ${piloto.apellidos}",
+                                        codigo = piloto.codigoElemento,
+                                        icon = Icons.Default.DirectionsCar,
+                                        onClick = { onVerDetallePiloto(piloto) }
+                                    )
+                                }
+                            }
+
+                            if (paramedicos.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        "PARAMÉDICOS",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.sp,
+                                        color = RojoBomberos,
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
+                                }
+                                items(paramedicos) { paramedico ->
+                                    CardElementoSimple(
+                                        nombre = "${paramedico.nombres} ${paramedico.apellidos}",
+                                        codigo = paramedico.codigoElemento,
+                                        icon = Icons.Default.LocalHospital,
+                                        onClick = { onVerDetalleParamedico(paramedico) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             Button(
                 onClick = onAgregarNuevoElemento,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
-                shape = RoundedCornerShape(22.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE30613)
-                )
+                    .height(64.dp)
+                    .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                shape = RoundedCornerShape(25.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.PersonAdd,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Blanco
                 )
-
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "  AGREGAR NUEVO\nELEMENTO",
-                    color = Color.White,
+                    text = "AGREGAR NUEVO ELEMENTO",
+                    color = Blanco,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center
+                    fontSize = 16.sp
                 )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF4F4F4)
-                ),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(
-                    text = "ELEMENTOS REGISTRADOS",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    color = Color(0xFFE30613),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    textAlign = TextAlign.Center
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
 
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    color = Color(0xFFE30613)
+@Composable
+fun CardElementoSimple(
+    nombre: String,
+    codigo: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Blanco
+        ),
+        shape = RoundedCornerShape(15.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(45.dp)
+                    .background(RojoBomberos, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Blanco,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            if (pilotos.isEmpty() && paramedicos.isEmpty() && !isLoading) {
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
                 Text(
-                    text = "No hay elementos registrados",
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
+                    text = nombre,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = "Cód: $codigo",
+                    color = Color.Gray,
+                    fontSize = 13.sp
                 )
             }
-
-            pilotos.forEach { piloto ->
-                CardPilotoSimple(
-                    piloto = piloto,
-                    onClick = { onVerDetallePiloto(piloto) }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-
-            paramedicos.forEach { paramedico ->
-                CardParamedicoSimple(
-                    paramedico = paramedico,
-                    onClick = { onVerDetalleParamedico(paramedico) }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun CardPilotoSimple(
-    piloto: Piloto,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFEDEAF0)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.DirectionsCar,
-                contentDescription = null,
-                tint = Color(0xFFE30613)
-            )
-
-            Text(
-                text = "  ${piloto.nombres} ${piloto.apellidos}",
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                fontSize = 17.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun CardParamedicoSimple(
-    paramedico: Paramedico,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFEDEAF0)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocalHospital,
-                contentDescription = null,
-                tint = Color(0xFFE30613)
-            )
-
-            Text(
-                text = "  ${paramedico.nombres} ${paramedico.apellidos}",
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                fontSize = 17.sp
-            )
         }
     }
 }

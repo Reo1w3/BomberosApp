@@ -10,7 +10,7 @@ class ParamedicoRepository {
 
     suspend fun guardarParamedico(paramedico: Paramedico): Boolean {
         return try {
-            db.collection("paramedicos")
+            db.collection("paramedico")
                 .add(paramedico)
                 .await()
             true

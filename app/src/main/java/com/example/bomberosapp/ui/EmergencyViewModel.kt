@@ -1,12 +1,11 @@
 package com.example.bomberosapp.ui
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.bomberosapp.data.model.Emergency
+import com.example.bomberosapp.data.model.*
 import com.example.bomberosapp.data.repository.ConfigRepository
 import com.example.bomberosapp.data.repository.EmergencyRepository
 import kotlinx.coroutines.launch
@@ -19,68 +18,151 @@ class EmergencyViewModel(
     var emergencyState by mutableStateOf<EmergencyUIState>(EmergencyUIState.Idle)
         private set
 
-    // Form data
-    var formData = mutableStateMapOf<String, String>()
-        private set
+    // --- CAMPOS DEL FORMULARIO (Según Diagramas) ---
 
+    // Emergencia (General)
+    var numeroEmergencia by mutableStateOf("")
+    var fechaHoraLlamada by mutableStateOf(System.currentTimeMillis())
+    var telefonoSolicitante by mutableStateOf("")
+    var nombresSolicitante by mutableStateOf("")
+    var apellidosSolicitante by mutableStateOf("")
+    var tipoServicio by mutableStateOf("")
+    var numeroUnidad by mutableStateOf("")
+    var codigoPersonal by mutableStateOf("")
+    var campoExtra by mutableStateOf("")
+
+    // Paciente
+    var nombrePaciente by mutableStateOf("")
+    var domicilioPaciente by mutableStateOf("")
+    var edadPaciente by mutableStateOf("")
+    var sexoPaciente by mutableStateOf("")
+    var estadoPaciente by mutableStateOf("")
+
+    // Acompañante
+    var nombreAcompanante by mutableStateOf("")
+    var apellidoAcompanante by mutableStateOf("")
+    var telefonoAcompanante by mutableStateOf("")
+
+    // Dirección Emergencia
+    var ubicacionMapa by mutableStateOf("")
+    var referenciasDireccion by mutableStateOf("")
+    var observacionesDireccion by mutableStateOf("")
+
+    // Traslado
+    var direccionOrigenTraslado by mutableStateOf("")
+    var direccionDestinoTraslado by mutableStateOf("")
+    var horaLlegadaTraslado by mutableStateOf("")
+
+    // --- VALIDACIONES DE SECCIÓN ---
+    val isGeneralInfoComplete get() = numeroEmergencia.isNotBlank() && nombresSolicitante.isNotBlank() && tipoServicio.isNotBlank() && numeroUnidad.isNotBlank()
+    val isLocationComplete get() = ubicacionMapa.isNotBlank() || referenciasDireccion.isNotBlank()
+    val isPatientComplete get() = nombrePaciente.isNotBlank() && edadPaciente.isNotBlank() && sexoPaciente.isNotBlank()
+    val isAcompananteComplete get() = nombreAcompanante.isNotBlank() || apellidoAcompanante.isNotBlank()
+    val isTrasladoComplete get() = direccionOrigenTraslado.isNotBlank() && direccionDestinoTraslado.isNotBlank()
+
+    // --- CATÁLOGOS ---
     var unidades by mutableStateOf<List<String>>(emptyList())
         private set
-
-    var tiposServicio by mutableStateOf<List<String>>(emptyList())
+    var tiposServicioList by mutableStateOf<List<String>>(emptyList())
         private set
 
     fun loadConfig() {
         viewModelScope.launch {
-            unidades = configRepository.getCatalogo("unidad", "placa")
-            tiposServicio = configRepository.getCatalogo("tipo_servicio", "nombre")
+            unidades = configRepository.getCatalogo("unidad", "numeroUnidad")
+            tiposServicioList = configRepository.getCatalogo("tipo_servicio", "nombre")
         }
     }
 
-    fun saveEmergency(
-        unidad: String, piloto: String, personal: String, kmS: String, kmE: String,
-        hA: String, hS: String, hL: String, hR: String, hLT: String,
-        nomS: String, apeS: String, telS: String, solTel: Boolean, dirE: String, tipS: String,
-        nomP: String, nomCP: String, edaP: String, genP: String, sexP: String, dpiP: String, dirP: String, domP: String,
-        tieAco: Boolean, nomA: String, apeA: String, telA: String,
-        pa: String, fc: String, fr: String, sat: String, tem: String, glu: String,
-        diag: String, tieTra: Boolean, trasA: String, hosp: String, fall: Boolean, obs: String,
-        perD: String, repF: String, vobo: String, confP: Boolean,
-        firmaBase64: String, firmaPiloto: String, firmaJefe: String, firmaPers: String,
-        onSuccess: () -> Unit
-    ) {
-        if (unidad.isBlank() || hS.isBlank() || nomS.isBlank() || tipS.isBlank() || dirE.isBlank()) {
-            emergencyState = EmergencyUIState.Error("Por favor, complete los campos obligatorios")
+    fun saveFullEmergency(onSuccess: () -> Unit) {
+        // Validación de datos vacíos (Requerimiento del usuario)
+        if (numeroEmergencia.isBlank() || nombresSolicitante.isBlank() || tipoServicio.isBlank() || numeroUnidad.isBlank()) {
+            emergencyState = EmergencyUIState.Error("Complete los campos básicos de la emergencia")
             return
         }
 
-        val emergency = Emergency(
-            unidad = unidad, piloto = piloto, personal = personal, kilometrajeSalida = kmS, kilometrajeEntrada = kmE,
-            horaAviso = hA, horaSalida = hS, horaLlegada = hL, horaRegreso = hR, horaLlegadaTraslado = hLT,
-            nombreSolicitante = nomS, apellidoSolicitante = apeS, telefonoSolicitante = telS, solicitudPorTelefono = solTel, direccionEmergencia = dirE, tipoServicio = tipS,
-            nombrePaciente = nomP, nombreCompletoPacientes = nomCP, edadPaciente = edaP, generoPaciente = genP, sexoPaciente = sexP,
-            dpiPaciente = dpiP, direccionPaciente = dirP, domicilioPaciente = domP,
-            tieneAcompanante = tieAco, nombreAcompanante = nomA, apellidoAcompanante = apeA, telefonoAcompanante = telA,
-            presionArterial = pa, frecuenciaCardiaca = fc, frecuenciaRespiratoria = fr, saturacionOxigeno = sat, temperatura = tem, glucosa = glu,
-            diagnosticoPreliminar = diag, tieneTraslado = tieTra, trasladoA = trasA, hospitalTraslado = hosp, fallecidos = fall, observaciones = obs,
-            personalDestacado = perD, reporteFormuladoPor = repF, voBoJefeServicio = vobo, esConformePiloto = confP,
-            firmaBase64 = firmaBase64, firmaPiloto = firmaPiloto, firmaJefeServicio = firmaJefe, firmaPersonalDestacado = firmaPers
+        emergencyState = EmergencyUIState.Loading
+
+        val paciente = Paciente(
+            nombrePaciente = nombrePaciente,
+            domicilio = domicilioPaciente,
+            edadPaciente = edadPaciente,
+            sexo = sexoPaciente,
+            estadoPaciente = estadoPaciente
         )
 
-        emergencyState = EmergencyUIState.Loading
+        val acompanante = Acompanante(
+            nombreAcompanante = nombreAcompanante,
+            apellidoAcompanante = apellidoAcompanante,
+            telefonoAcompanante = telefonoAcompanante
+        )
+
+        val direccion = DireccionEmergenciaDetalle(
+            ubicacionMapa = ubicacionMapa,
+            referencias = referenciasDireccion,
+            observaciones = observacionesDireccion
+        )
+
+        val traslado = Traslado(
+            direccionOrigen = direccionOrigenTraslado,
+            direccionDestino = direccionDestinoTraslado,
+            horaLlegada = horaLlegadaTraslado
+        )
+
+        val emergencia = EmergenciaPrincipal(
+            numeroEmergencia = numeroEmergencia,
+            fechaHoraLlamada = fechaHoraLlamada,
+            telefonoSolicitante = telefonoSolicitante,
+            nombresSolicitante = nombresSolicitante,
+            apellidosSolicitante = apellidosSolicitante,
+            tipoServicio = tipoServicio,
+            numeroUnidad = numeroUnidad,
+            nombrePaciente = nombrePaciente,
+            nombreAcompanante = nombreAcompanante,
+            codigoPersonal = codigoPersonal,
+            campo = campoExtra
+        )
+
         viewModelScope.launch {
-            val success = repository.saveEmergency(emergency)
+            val success = repository.saveCompleteEmergency(
+                emergencia, paciente, acompanante, direccion, traslado
+            )
             if (success) {
                 emergencyState = EmergencyUIState.Success
+                resetFields()
                 onSuccess()
             } else {
-                emergencyState = EmergencyUIState.Error("Error al guardar en Firestore")
+                emergencyState = EmergencyUIState.Error("Error al guardar en la base de datos")
             }
         }
     }
 
+    private fun resetFields() {
+        numeroEmergencia = ""
+        telefonoSolicitante = ""
+        nombresSolicitante = ""
+        apellidosSolicitante = ""
+        tipoServicio = ""
+        numeroUnidad = ""
+        codigoPersonal = ""
+        campoExtra = ""
+        nombrePaciente = ""
+        domicilioPaciente = ""
+        edadPaciente = ""
+        sexoPaciente = ""
+        estadoPaciente = ""
+        nombreAcompanante = ""
+        apellidoAcompanante = ""
+        telefonoAcompanante = ""
+        ubicacionMapa = ""
+        referenciasDireccion = ""
+        observacionesDireccion = ""
+        direccionOrigenTraslado = ""
+        direccionDestinoTraslado = ""
+        horaLlegadaTraslado = ""
+    }
+
     fun resetState() {
         emergencyState = EmergencyUIState.Idle
-        formData.clear()
     }
 }
 

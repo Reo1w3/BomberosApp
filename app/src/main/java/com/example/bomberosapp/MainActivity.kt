@@ -1,6 +1,7 @@
 package com.example.bomberosapp
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,12 +45,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.data.model.Piloto
 import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.ui.*
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.Blanco
+import com.example.bomberosapp.ui.theme.RojoClaro
 import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
 import com.example.bomberosapp.ui.PacienteAcompananteScreen
 import com.example.bomberosapp.ui.components.SignatureDialog
@@ -63,8 +70,16 @@ import java.util.*
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val sharedPrefs = getSharedPreferences("bomberos_prefs", Context.MODE_PRIVATE)
+
         setContent {
-            val loginViewModel: LoginViewModel = viewModel()
+            val loginViewModel: LoginViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return LoginViewModel(prefs = sharedPrefs) as T
+                    }
+                }
+            )
             val emergencyViewModel: EmergencyViewModel = viewModel()
             val adminViewModel: AdminViewModel = viewModel()
             val pilotoViewModel: PilotoViewModel = viewModel()
@@ -92,7 +107,6 @@ class MainActivity : ComponentActivity() {
                             "admin_seleccion_tipo" -> "admin_fuerza_activa"
                             "admin_nuevo_elemento" -> "admin_seleccion_tipo"
                             "form" -> "home"
-                            "form_paciente" -> "form"
                             else -> "login"
                         }
                     }
@@ -214,6 +228,11 @@ class MainActivity : ComponentActivity() {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d ->
+                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
+                                                // Podrías mostrar un Toast aquí si tuvieras acceso al contexto fácilmente, 
+                                                // o manejar el estado de error en la UI.
+                                                return@NuevoElementoScreen
+                                            }
                                             val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
                                             FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
@@ -225,6 +244,9 @@ class MainActivity : ComponentActivity() {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d ->
+                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
+                                                return@NuevoElementoScreen
+                                            }
                                             val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
                                             FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
@@ -281,12 +303,7 @@ class MainActivity : ComponentActivity() {
                                 "form" -> NuevaEmergenciaUI(
                                     viewModel = emergencyViewModel,
                                     onVolverClick = { currentScreen = "home" },
-                                    onSiguienteClick = { currentScreen = "form_paciente" }
-                                )
-                                "form_paciente" -> PacienteAcompananteScreen(
-                                    viewModel = emergencyViewModel,
-                                    onVolverClick = { currentScreen = "form" },
-                                    onSiguienteClick = { /* Próximo paso: Signatures/Resumen */ }
+                                    onFinalizarClick = { currentScreen = "home" }
                                 )
                             }
                         }
@@ -307,15 +324,16 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
-    var user by remember { mutableStateOf("") }
+    val savedUser = viewModel.getSavedUser()
+    var user by remember { mutableStateOf(savedUser) }
     var pass by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
-    var rememberMe by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(savedUser.isNotEmpty()) }
     val state = viewModel.loginState
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         Column(
-            modifier = Modifier.fillMaxWidth().weight(0.4f).background(Color(0xFFE30613)),
+            modifier = Modifier.fillMaxWidth().weight(0.4f).background(RojoBomberos),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -333,15 +351,29 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
             ) {
                 Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     LabelWithIcon("VOLUNTARIO", Icons.Default.Person)
-                    OutlinedTextField(value = user, onValueChange = { user = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
+                    OutlinedTextField(
+                        value = user,
+                        onValueChange = { user = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RojoBomberos,
+                            unfocusedBorderColor = Color.Gray
+                        )
+                    )
                     
                     Spacer(Modifier.height(12.dp))
                     LabelWithIcon("CONTRASEÑA", Icons.Default.Lock)
                     OutlinedTextField(
-                        value = pass, onValueChange = { pass = it },
+                        value = pass,
+                        onValueChange = { pass = it },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
-                        visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation()
+                        visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RojoBomberos,
+                            unfocusedBorderColor = Color.Gray
+                        )
                     )
 
                     Row(
@@ -353,7 +385,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
                             Checkbox(
                                 checked = rememberMe,
                                 onCheckedChange = { rememberMe = it },
-                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFE30613))
+                                colors = CheckboxDefaults.colors(checkedColor = RojoBomberos)
                             )
                             Text("RECORDARME", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
@@ -372,10 +404,10 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
                     }
 
                     Button(
-                        onClick = { viewModel.login(user, pass) { onLoginSuccess(user) } },
+                        onClick = { viewModel.login(user, pass, rememberMe) { onLoginSuccess(user) } },
                         modifier = Modifier.fillMaxWidth().height(60.dp),
                         enabled = state !is LoginUIState.Loading,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFBABA)),
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoClaro),
                         shape = RoundedCornerShape(30.dp)
                     ) {
                         if (state is LoginUIState.Loading) {
@@ -621,103 +653,154 @@ fun AdminUnidadesScreen(onBack: () -> Unit, onAdd: () -> Unit, onUnitClick: (Uni
 
     val filteredUnidades = unidades.filter { it.numero.contains(searchText, ignoreCase = true) }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
-        HeaderApp(icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Blanco)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        HeaderApp(title = "LISTA DE UNIDADES", icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
         
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
-                    .background(Color.White, RoundedCornerShape(25.dp)),
-                placeholder = { 
-                    Text(
-                        "INGRESE EL NUMERO DE LA UNIDAD", 
-                        fontSize = 12.sp, 
-                        fontWeight = FontWeight.Black,
-                        color = Color.Gray
-                    ) 
-                },
-                trailingIcon = { Icon(Icons.Default.Search, null, tint = Color.Black) },
-                shape = RoundedCornerShape(25.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
-                ),
-                singleLine = true
-            )
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
-            color = Color.White
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .weight(1f)
+                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco)
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Red)
-                } else {
-                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        items(filteredUnidades) { unidad ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onUnitClick(unidad) }
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(65.dp)
-                                        .background(Color(0xFFE30613), RoundedCornerShape(15.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.LocalShipping,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(35.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(20.dp))
-                                Text(
-                                    "UNIDAD ${unidad.numero}",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.Black
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(55.dp),
+                        placeholder = { 
+                            Text(
+                                "Buscar por número de unidad...", 
+                                fontSize = 14.sp, 
+                                color = Color.Gray
+                            ) 
+                        },
+                        trailingIcon = { Icon(Icons.Default.Search, null, tint = RojoBomberos) },
+                        shape = RoundedCornerShape(15.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RojoBomberos,
+                            unfocusedBorderColor = Color.Gray
+                        ),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (isLoading) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = RojoBomberos)
+                        }
+                    } else if (filteredUnidades.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "No se encontraron unidades",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(filteredUnidades) { unidad ->
+                                CardUnidadSimple(
+                                    unidad = unidad,
+                                    onClick = { onUnitClick(unidad) }
                                 )
                             }
                         }
                     }
                 }
+            }
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
-                    onClick = onAdd,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .border(1.dp, Color.Black, RoundedCornerShape(20.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613)),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Text(
-                        "AGREGAR NUEVA\nUNIDAD",
-                        textAlign = TextAlign.Center,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.Black
-                    )
-                }
+            Button(
+                onClick = onAdd,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                shape = RoundedCornerShape(25.dp)
+            ) {
+                Icon(Icons.Default.Add, null, tint = Blanco)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "AGREGAR NUEVA UNIDAD",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Blanco
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun CardUnidadSimple(unidad: Unidad, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = Blanco),
+        shape = RoundedCornerShape(15.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(45.dp)
+                    .background(RojoBomberos, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.LocalShipping,
+                    contentDescription = null,
+                    tint = Blanco,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(
+                    "UNIDAD ${unidad.numero}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = unidad.tipo,
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
             }
         }
     }

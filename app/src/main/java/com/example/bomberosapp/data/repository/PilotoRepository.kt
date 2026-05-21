@@ -9,7 +9,7 @@ class PilotoRepository(
 ) {
     suspend fun guardarPiloto(piloto: Piloto): Boolean {
         return try {
-            db.collection("pilotos")
+            db.collection("piloto")
                 .add(piloto)
                 .await()
             true
