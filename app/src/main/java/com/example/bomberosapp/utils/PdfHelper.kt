@@ -1,15 +1,22 @@
 package com.example.bomberosapp.utils
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
 import android.graphics.pdf.PdfDocument
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.PacienteData
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -17,6 +24,7 @@ object PdfHelper {
 
     fun generarReportePdf(context: Context, emergency: Emergency, patients: List<PacienteData>) {
         val pdfDocument = PdfDocument()
+        // ... (resto del código de dibujo del PDF se mantiene igual)
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Tamaño A4
         val page = pdfDocument.startPage(pageInfo)
         val canvas: Canvas = page.canvas
@@ -144,14 +152,52 @@ object PdfHelper {
 
         pdfDocument.finishPage(page)
 
-        // Guardar y Compartir
-        val file = File(context.cacheDir, "Reporte_Bomberos_${emergency.id}.pdf")
+        val fileName = "Reporte_Bomberos_${emergency.id}.pdf"
+        
         try {
-            pdfDocument.writeTo(FileOutputStream(file))
+            // 1. Guardar como archivo permanente en Descargas
+            guardarPdfEnDescargas(context, pdfDocument, fileName)
+            
+            // 2. Guardar temporalmente para compartir (opcional, pero útil para el Intent)
+            val cacheFile = File(context.cacheDir, fileName)
+            pdfDocument.writeTo(FileOutputStream(cacheFile))
             pdfDocument.close()
-            compartirPdf(context, file)
+            
+            compartirPdf(context, cacheFile)
         } catch (e: Exception) {
             e.printStackTrace()
+            Toast.makeText(context, "Error al guardar PDF: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun guardarPdfEnDescargas(context: Context, pdfDocument: PdfDocument, fileName: String) {
+        val resolver = context.contentResolver
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val uri: Uri? = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            uri?.let {
+                resolver.openOutputStream(it)?.use { outputStream ->
+                    pdfDocument.writeTo(outputStream)
+                }
+                Toast.makeText(context, "PDF guardado en Descargas", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Para versiones anteriores a Android 10 (Q)
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, fileName)
+            try {
+                pdfDocument.writeTo(FileOutputStream(file))
+                Toast.makeText(context, "PDF guardado en: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Error en almacenamiento externo", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
