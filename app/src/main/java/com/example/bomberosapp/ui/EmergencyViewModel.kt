@@ -180,7 +180,8 @@ class EmergencyViewModel(
             horaSalida.isNotBlank() && 
             nombreSolicitante.isNotBlank() && 
             apellidoSolicitante.isNotBlank() && 
-            tipoServicio.isNotBlank()
+            tipoServicio.isNotBlank() &&
+            direccionEmergencia.isNotBlank()
 
     fun loadConfig() {
         viewModelScope.launch {
@@ -195,7 +196,7 @@ class EmergencyViewModel(
 
     fun saveFullEmergency(onSuccess: () -> Unit) {
         if (!isGeneralInfoComplete) {
-            emergencyState = EmergencyUIState.Error("Complete los campos obligatorios (Unidad, Hora, Solicitante y Servicio)")
+            emergencyState = EmergencyUIState.Error("Complete los campos obligatorios (Unidad, Hora, Solicitante, Servicio y Dirección)")
             return
         }
 
