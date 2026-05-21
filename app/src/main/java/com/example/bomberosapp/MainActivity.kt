@@ -107,6 +107,7 @@ class MainActivity : ComponentActivity() {
                             "admin_seleccion_tipo" -> "admin_fuerza_activa"
                             "admin_nuevo_elemento" -> "admin_seleccion_tipo"
                             "form" -> "home"
+                            "ultimos_controles" -> "home"
                             else -> "login"
                         }
                     }
@@ -122,10 +123,17 @@ class MainActivity : ComponentActivity() {
                                         emergencyViewModel.resetState()
                                         currentScreen = "form"
                                     },
+                                    onUltimosControles = {
+                                        currentScreen = "ultimos_controles"
+                                    },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
                                     }
+                                )
+                                "ultimos_controles" -> UltimosControlesScreen(
+                                    viewModel = adminViewModel,
+                                    onVolverClick = { currentScreen = "home" }
                                 )
                                 "admin_home" -> AdminHomeScreen(
                                     onList = { currentScreen = "admin_list" },
@@ -229,8 +237,6 @@ class MainActivity : ComponentActivity() {
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
-                                                // Podrías mostrar un Toast aquí si tuvieras acceso al contexto fácilmente, 
-                                                // o manejar el estado de error en la UI.
                                                 return@NuevoElementoScreen
                                             }
                                             val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
@@ -290,7 +296,6 @@ class MainActivity : ComponentActivity() {
                                             unidadAEditar = unit,
                                             onBack = { currentScreen = "admin_detalle_unidad" },
                                             onSuccess = {
-                                                // Refrescar la unidad seleccionada después de editar
                                                 FirebaseFirestore.getInstance().collection("unidad").document(unit.id).get()
                                                     .addOnSuccessListener { doc ->
                                                         selectedUnidad = doc.toObject(Unidad::class.java)?.copy(id = doc.id)
@@ -436,20 +441,20 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 }
 
 @Composable
-fun HomeScreen(onNewEmergency: () -> Unit, onLogout: () -> Unit) {
+fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
         Column(Modifier.padding(20.dp)) {
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
             Spacer(Modifier.height(16.dp))
             Card(
-                Modifier.fillMaxWidth().height(80.dp),
+                Modifier.fillMaxWidth().height(80.dp).clickable { onUltimosControles() },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
             ) {
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text("ÚLTIMOS CONTROLES", color = Color.White, fontWeight = FontWeight.Black)
-                    Text("No existen controles recientes.", color = Color.White, fontSize = 12.sp)
+                    Text("Toque para ver registros anteriores", color = Color.White, fontSize = 12.sp)
                 }
             }
         }
@@ -533,9 +538,8 @@ fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onFuerzaActiva: 
 
                 Spacer(Modifier.weight(1f))
 
-                // Últimos Controles Section
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp).clickable { onList() },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
                 ) {
@@ -549,20 +553,8 @@ fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onFuerzaActiva: 
                             fontWeight = FontWeight.Black,
                             fontSize = 20.sp
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                                .background(Color.White, RoundedCornerShape(20.dp))
-                        )
                         Spacer(Modifier.height(8.dp))
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                                .background(Color.White, RoundedCornerShape(20.dp))
-                        )
+                        Text("Toque para ver registros históricos", color = Color.White, fontSize = 12.sp)
                     }
                 }
             }
@@ -645,7 +637,6 @@ fun AdminUnidadesScreen(onBack: () -> Unit, onAdd: () -> Unit, onUnitClick: (Uni
                 .await()
             unidades = snapshot.documents.mapNotNull { it.toObject(Unidad::class.java)?.copy(id = it.id) }
         } catch (e: Exception) {
-            // Error handling
         } finally {
             isLoading = false
         }

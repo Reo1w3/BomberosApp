@@ -347,13 +347,13 @@ fun NuevaEmergenciaScreen(
                         label = "Nombre del Acompañante", 
                         value = viewModel.nombreAcompanante, 
                         onValueChange = { viewModel.nombreAcompanante = it },
-                        trailingIcon = { IconButton(onClick = { launchSpeech("nombreAcompanante") }) { Icon(Icons.Default.Mic, "Dictar", tint = RojoBomberos) } }
+                        trailingIcon = { IconButton(onClick = { launchSpeech("nombreAcompanante") }) { Icon(Icons.Default.Mic, null, tint = RojoBomberos) } }
                     )
                     CampoTextoEmergencia(
                         label = "Apellido", 
                         value = viewModel.apellidoAcompanante, 
                         onValueChange = { viewModel.apellidoAcompanante = it },
-                        trailingIcon = { IconButton(onClick = { launchSpeech("apellidoAcompanante") }) { Icon(Icons.Default.Mic, "Dictar", tint = RojoBomberos) } }
+                        trailingIcon = { IconButton(onClick = { launchSpeech("apellidoAcompanante") }) { Icon(Icons.Default.Mic, null, tint = RojoBomberos) } }
                     )
                     CampoTextoEmergencia(label = "Teléfono", value = viewModel.telefonoAcompanante, onValueChange = { viewModel.telefonoAcompanante = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                 }
@@ -431,6 +431,7 @@ fun NuevaEmergenciaScreen(
 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
+                // Conformidades
                 Text("VISTOS BUENOS", fontWeight = FontWeight.Black, color = Color.Gray, fontSize = 11.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = viewModel.conformeJefeServicio, onCheckedChange = { viewModel.conformeJefeServicio = it }, colors = CheckboxDefaults.colors(RojoBomberos))
@@ -493,7 +494,12 @@ fun NuevaEmergenciaScreen(
             }
 
             Button(
-                onClick = { viewModel.saveFullEmergency { onFinalizarClick() } },
+                onClick = { 
+                    viewModel.saveFullEmergency { 
+                        Toast.makeText(context, "REPORTE GUARDADO EXITOSAMENTE", Toast.LENGTH_LONG).show()
+                        onFinalizarClick() 
+                    } 
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp).padding(top = 16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
                 shape = RoundedCornerShape(25.dp),
@@ -539,7 +545,7 @@ fun PatientFields(
             trailingIcon = { IconButton(onClick = onApellidoMic) { Icon(Icons.Default.Mic, null, tint = RojoBomberos) } })
             
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.weight(1f)) { CampoTextoEmergencia(label = "Edad", value = edad, onValueChange = onEdadChange, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)) }
+            Box(Modifier.weight(1f)) { CampoTextoEmergencia(label = "Edad", value = edad, onValueChange = { if (it.all { char -> char.isDigit() }) onEdadChange(it) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)) }
             Box(Modifier.weight(1f)) { 
                 Column {
                     Text("Sexo", fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -548,10 +554,10 @@ fun PatientFields(
             }
         }
         
-        CampoTextoEmergencia(label = "DPI / Identificación", value = dpi, onValueChange = onDpiChange, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+        CampoTextoEmergencia(label = "DPI / Identificación", value = dpi, onValueChange = { if (it.all { char -> char.isDigit() }) onDpiChange(it) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
         
         CampoTextoEmergencia(label = "Domicilio", value = domicilio, onValueChange = onDomicilioChange,
-            trailingIcon = { IconButton(onClick = onDomicilioMic) { Icon(Icons.Default.Mic, null, tint = RojoBomberos) } })
+            trailingIcon = { IconButton(onClick = { onDomicilioMic() }) { Icon(Icons.Default.Mic, null, tint = RojoBomberos) } })
         
         Text("Estado de Salud", fontWeight = FontWeight.Bold)
         DropdownFieldSimple(options = viewModel.estadosPacienteList, selectedOption = estado, label = "Seleccione Estado", onOptionSelected = onEstadoChange)
