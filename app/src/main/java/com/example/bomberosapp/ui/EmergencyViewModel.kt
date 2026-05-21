@@ -176,7 +176,11 @@ class EmergencyViewModel(
         }
     }
 
-    val isGeneralInfoComplete get() = unidad.isNotBlank() && horaSalida.isNotBlank() && nombreSolicitante.isNotBlank() && tipoServicio.isNotBlank()
+    val isGeneralInfoComplete get() = unidad.isNotBlank() && 
+            horaSalida.isNotBlank() && 
+            nombreSolicitante.isNotBlank() && 
+            apellidoSolicitante.isNotBlank() && 
+            tipoServicio.isNotBlank()
 
     fun loadConfig() {
         viewModelScope.launch {
@@ -191,7 +195,7 @@ class EmergencyViewModel(
 
     fun saveFullEmergency(onSuccess: () -> Unit) {
         if (!isGeneralInfoComplete) {
-            emergencyState = EmergencyUIState.Error("Complete los campos obligatorios")
+            emergencyState = EmergencyUIState.Error("Complete los campos obligatorios (Unidad, Hora, Solicitante y Servicio)")
             return
         }
 
@@ -274,13 +278,11 @@ class EmergencyViewModel(
                     )
                     batch.set(pacienteRef, pData)
                 } else {
-                    pacientesList.forEach { paciente ->
+                    pacientesList.forEach { p ->
                         val pacienteRef = db.collection("paciente").document()
-                        val pData = paciente.copy(
-                            id = pacienteRef.id,
-                            numeroEmergenciaRelacionado = emergencyId 
-                        )
-                        batch.set(pacienteRef, pData)
+                        p.id = pacienteRef.id
+                        p.numeroEmergenciaRelacionado = emergencyId
+                        batch.set(pacienteRef, p)
                     }
                 }
 
@@ -289,7 +291,7 @@ class EmergencyViewModel(
                 resetFields()
                 onSuccess()
             } catch (e: Exception) {
-                emergencyState = EmergencyUIState.Error("Error: ${e.message}")
+                emergencyState = EmergencyUIState.Error(e.message ?: "Error desconocido")
             }
         }
     }

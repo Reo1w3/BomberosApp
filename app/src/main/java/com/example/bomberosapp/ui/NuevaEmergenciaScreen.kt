@@ -154,6 +154,7 @@ fun NuevaEmergenciaScreen(
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 Text("Datos del Solicitante", fontWeight = FontWeight.Bold, color = RojoBomberos)
                 CampoTextoEmergencia(label = "Nombre del Solicitante", value = viewModel.nombreSolicitante, onValueChange = { viewModel.nombreSolicitante = it })
+                CampoTextoEmergencia(label = "Apellido del Solicitante", value = viewModel.apellidoSolicitante, onValueChange = { viewModel.apellidoSolicitante = it })
                 CampoTextoEmergencia(label = "Teléfono del Solicitante", value = viewModel.telefonoSolicitante, onValueChange = { viewModel.telefonoSolicitante = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
             }
 
