@@ -12,6 +12,7 @@ data class Paramedico(
     val certificacion: String = "",
     val experiencia: String = "",
     val turno: String = "",
+    val contrasena: String = "",
     val tipoElemento: String = "Paramédico",
     val timestamp: Long = System.currentTimeMillis()
 )

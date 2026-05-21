@@ -12,6 +12,7 @@ data class Piloto(
     val numeroLicencia: String = "",
     val fechaVencimiento: String = "",
     val turno: String = "",
+    val contrasena: String = "",
     val tipoElemento: String = "Piloto",
     val timestamp: Long = System.currentTimeMillis()
 )

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.data.model.Piloto
@@ -86,6 +87,8 @@ class MainActivity : ComponentActivity() {
             val paramedicoViewModel: ParamedicoViewModel = viewModel()
             
             var currentScreen by remember { mutableStateOf("login") }
+            var currentUserRole by remember { mutableStateOf(UserRole.NONE) }
+            var currentUserName by remember { mutableStateOf("") }
             var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
             var selectedPiloto by remember { mutableStateOf<Piloto?>(null) }
             var selectedParamedico by remember { mutableStateOf<Paramedico?>(null) }
@@ -115,8 +118,10 @@ class MainActivity : ComponentActivity() {
                     Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) {
                             when (currentScreen) {
-                                "login" -> LoginScreen(loginViewModel) { user ->
-                                    currentScreen = if (user == "0" || user == "123") "admin_home" else "home"
+                                "login" -> LoginScreen(loginViewModel) { role ->
+                                    currentUserRole = role
+                                    currentUserName = loginViewModel.getSavedUser() // Or fetch full name
+                                    currentScreen = if (role == UserRole.ADMIN) "admin_home" else "home"
                                 }
                                 "home" -> HomeScreen(
                                     onNewEmergency = {
@@ -131,10 +136,12 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "login"
                                     }
                                 )
-                                "ultimos_controles" -> UltimosControlesScreen(
-                                    viewModel = adminViewModel,
-                                    onVolverClick = { currentScreen = "home" }
-                                )
+                                "ultimos_controles" -> {
+                                    UltimosControlesScreen(
+                                        viewModel = adminViewModel,
+                                        onVolverClick = { currentScreen = "home" }
+                                    )
+                                }
                                 "admin_home" -> AdminHomeScreen(
                                     onList = { currentScreen = "admin_list" },
                                     onUnidades = { currentScreen = "admin_unidades" },
@@ -235,11 +242,11 @@ class MainActivity : ComponentActivity() {
                                 "admin_nuevo_elemento_piloto" -> {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d ->
+                                        onContinuarClick = { n, a, i, c, t, d, psw ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
                                             FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
@@ -249,11 +256,11 @@ class MainActivity : ComponentActivity() {
                                 "admin_nuevo_elemento_paramedico" -> {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d ->
+                                        onContinuarClick = { n, a, i, c, t, d, psw ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
                                             FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
@@ -261,8 +268,10 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 "admin_list" -> {
-                                    LaunchedEffect(Unit) { adminViewModel.startObserving() }
-                                    AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
+                                    UltimosControlesScreen(
+                                        viewModel = adminViewModel,
+                                        onVolverClick = { currentScreen = "admin_home" }
+                                    )
                                 }
                                 "admin_unidades" -> {
                                     AdminUnidadesScreen(
@@ -310,14 +319,22 @@ class MainActivity : ComponentActivity() {
                                     onVolverClick = { currentScreen = "home" },
                                     onFinalizarClick = { currentScreen = "home" }
                                 )
+                                "profile" -> ProfileScreen(
+                                    userName = currentUserName,
+                                    userRole = currentUserRole,
+                                    onLogout = {
+                                        loginViewModel.resetState()
+                                        currentScreen = "login"
+                                    }
+                                )
                             }
                         }
                         
                         if (currentScreen != "login") {
                             BottomNavBar(
                                 currentScreen = currentScreen,
-                                onHome = { if(currentScreen.contains("admin")) currentScreen = "admin_home" else currentScreen = "home" },
-                                onProfile = { /* Perfil */ }
+                                onHome = { if(currentUserRole == UserRole.ADMIN) currentScreen = "admin_home" else currentScreen = "home" },
+                                onProfile = { currentScreen = "profile" }
                             )
                         }
                     }
@@ -328,7 +345,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
+fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (UserRole) -> Unit) {
     val savedUser = viewModel.getSavedUser()
     var user by remember { mutableStateOf(savedUser) }
     var pass by remember { mutableStateOf("") }
@@ -409,7 +426,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
                     }
 
                     Button(
-                        onClick = { viewModel.login(user, pass, rememberMe) { onLoginSuccess(user) } },
+                        onClick = { viewModel.login(user, pass, rememberMe) { role -> onLoginSuccess(role) } },
                         modifier = Modifier.fillMaxWidth().height(60.dp),
                         enabled = state !is LoginUIState.Loading,
                         colors = ButtonDefaults.buttonColors(containerColor = RojoClaro),
@@ -592,34 +609,6 @@ fun AdminMenuButton(text: String, icon: ImageVector, onClick: () -> Unit) {
             lineHeight = 22.sp,
             color = Color.Black
         )
-    }
-}
-
-@Composable
-fun AdminListScreen(viewModel: AdminViewModel, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        HeaderApp(title = "HISTORIAL GENERAL", icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onBack)
-        
-        if (viewModel.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Red) }
-        } else {
-            LazyColumn(Modifier.fillMaxSize().padding(8.dp)) {
-                items(viewModel.emergencies) { em ->
-                    Card(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(2.dp, Color.Red),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text("Unidad: ${em.unidad}", fontWeight = FontWeight.Black)
-                            Text("Servicio: ${em.tipoServicio}")
-                            Text("Paciente: ${em.nombrePaciente}")
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

@@ -59,7 +59,8 @@ fun NuevoElementoScreen(
         numeroIdentificacion: String,
         codigoElemento: String,
         telefono: String,
-        direccion: String
+        direccion: String,
+        contrasena: String
     ) -> Unit,
     onVolverClick: () -> Unit
 ) {
@@ -69,8 +70,16 @@ fun NuevoElementoScreen(
     var codigoElemento by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
+    var contrasena by remember { mutableStateOf("") }
 
     val scrollState = rememberScrollState()
+
+    fun generarContrasena() {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+        contrasena = (1..8)
+            .map { chars.random() }
+            .joinToString("")
+    }
 
     Column(
         modifier = Modifier
@@ -156,6 +165,30 @@ fun NuevoElementoScreen(
                         value = direccion,
                         onValueChange = { direccion = it }
                     )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            CampoNuevoElemento(
+                                label = "CONTRASEÑA",
+                                value = contrasena,
+                                onValueChange = { contrasena = it }
+                            )
+                        }
+                        Button(
+                            onClick = { generarContrasena() },
+                            colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(56.dp)
+                        ) {
+                            Text("GENERAR", fontSize = 10.sp)
+                        }
+                    }
                 }
             }
 
@@ -190,7 +223,8 @@ fun NuevoElementoScreen(
                             numeroIdentificacion,
                             codigoElemento,
                             telefono,
-                            direccion
+                            direccion,
+                            contrasena
                         )
                     },
                     modifier = Modifier
