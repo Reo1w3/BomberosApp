@@ -493,24 +493,39 @@ fun NuevaEmergenciaScreen(
                 Text(uiState.message, color = Color.Red, modifier = Modifier.padding(8.dp))
             }
 
-            Button(
-                onClick = { 
-                    viewModel.saveFullEmergency { 
-                        Toast.makeText(context, "REPORTE GUARDADO EXITOSAMENTE", Toast.LENGTH_LONG).show()
-                        onFinalizarClick() 
-                    } 
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp).padding(top = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                shape = RoundedCornerShape(25.dp),
-                enabled = uiState !is EmergencyUIState.Loading
-            ) {
-                if (uiState is EmergencyUIState.Loading) {
-                    CircularProgressIndicator(color = Blanco, modifier = Modifier.size(24.dp))
-                } else {
-                    Text("GUARDAR REPORTE COMPLETO", color = Blanco, fontWeight = FontWeight.Bold)
+            // BOTONES DE ACCIÓN FINAL
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { 
+                        viewModel.saveFullEmergency { 
+                            Toast.makeText(context, "REPORTE GUARDADO EXITOSAMENTE", Toast.LENGTH_LONG).show()
+                            onFinalizarClick() 
+                        } 
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp).padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(25.dp),
+                    enabled = uiState !is EmergencyUIState.Loading
+                ) {
+                    if (uiState is EmergencyUIState.Loading) {
+                        CircularProgressIndicator(color = Blanco, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text("GUARDAR REPORTE COMPLETO", color = Blanco, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Button(
+                    onClick = { viewModel.generarPdfActual(context) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, null, tint = Blanco)
+                    Spacer(Modifier.width(8.dp))
+                    Text("EXPORTAR VISTA PREVIA PDF", color = Blanco, fontWeight = FontWeight.Bold)
                 }
             }
+
             Spacer(Modifier.height(24.dp))
         }
     }

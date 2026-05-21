@@ -93,7 +93,7 @@ object PdfHelper {
 
         // SECCIÓN 4 & 5
         y += 15f
-        drawSectionTitle(canvas, "4. ACOMPAÑANTE Y 5. TRASLADO", y)
+        drawSectionTitle(canvas, "4. ACOMPAÑANTE y 5. TRASLADO", y)
         y += 15f
         if (emergency.tieneAcompanante) drawText(canvas, "Acompañante: ${emergency.nombreAcompanante} (${emergency.telefonoAcompanante})", 60f, y)
         else drawText(canvas, "Acompañante: NO", 60f, y)
@@ -108,7 +108,7 @@ object PdfHelper {
 
         // SECCIÓN 6 & 7
         y += 25f
-        drawSectionTitle(canvas, "6. PERSONAL Y 7. CONTROL", y)
+        drawSectionTitle(canvas, "6. PERSONAL y 7. CONTROL", y)
         y += 15f
         drawText(canvas, "Piloto: ${emergency.piloto}", 60f, y)
         y += 15f
@@ -128,6 +128,19 @@ object PdfHelper {
         y += 20f
         drawSignature(canvas, emergency.firmaPiloto, 60f, y, "FIRMA PILOTO")
         drawSignature(canvas, emergency.firmaJefeServicio, 300f, y, "FIRMA JEFE DE SERVICIO")
+
+        // Agregar firmas de paramédicos si existen
+        if (emergency.firmaPersonalDestacado.isNotBlank()) {
+            val signatures = emergency.firmaPersonalDestacado.split("|")
+            val names = emergency.personalDestacado.split(", ")
+            signatures.forEachIndexed { index, sig ->
+                if (sig.isNotBlank()) {
+                    y += 90f
+                    val name = names.getOrNull(index) ?: "PARAMÉDICO ${index + 1}"
+                    drawSignature(canvas, sig, 60f, y, "FIRMA $name")
+                }
+            }
+        }
 
         pdfDocument.finishPage(page)
 

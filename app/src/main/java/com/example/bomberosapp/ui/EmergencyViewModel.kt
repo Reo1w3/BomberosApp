@@ -1,5 +1,6 @@
 package com.example.bomberosapp.ui
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +11,7 @@ import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.PacienteData
 import com.example.bomberosapp.data.repository.ConfigRepository
 import com.example.bomberosapp.data.repository.EmergencyRepository
+import com.example.bomberosapp.utils.PdfHelper
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -295,6 +297,76 @@ class EmergencyViewModel(
                 emergencyState = EmergencyUIState.Error(e.message ?: "Error desconocido")
             }
         }
+    }
+
+    fun generarPdfActual(context: Context) {
+        val personalTexto = paramedicosSeleccionados.filter { it.isNotBlank() }.joinToString(", ")
+        val firmasParamTexto = firmasParamedicosBase64.joinToString("|")
+        
+        val mainNombrePaciente = if (!existenMasPacientes) {
+            nombrePaciente
+        } else if (pacientesList.isNotEmpty()) {
+            "${pacientesList[0].nombre} (+${pacientesList.size - 1})"
+        } else {
+            "Varios"
+        }
+
+        val emergencyData = Emergency(
+            id = "PREVIEW",
+            unidad = unidad,
+            piloto = pilotoSeleccionado,
+            personalDestacado = personalTexto,
+            horaSalida = horaSalida,
+            telefonoSolicitante = telefonoSolicitante,
+            nombreSolicitante = nombreSolicitante,
+            apellidoSolicitante = apellidoSolicitante,
+            tipoServicio = tipoServicio,
+            direccionEmergencia = direccionEmergencia,
+            nombrePaciente = mainNombrePaciente,
+            observaciones = observacionesFinales,
+            hayFallecidos = hayFallecidos,
+            tieneAcompanante = tieneAcompanante,
+            nombreAcompanante = nombreAcompanante,
+            apellidoAcompanante = apellidoAcompanante,
+            telefonoAcompanante = telefonoAcompanante,
+            tieneTraslado = tieneTraslado,
+            trasladoA = trasladoA,
+            hospitalTraslado = hospitalTraslado,
+            direccionOrigenTraslado = direccionOrigenTraslado,
+            direccionDestinoTraslado = direccionDestinoTraslado,
+            horaLlegadaTraslado = horaLlegadaTraslado,
+            horaLlegada = horaLlegadaIncidente,
+            reporteFormuladoPor = reporteFormuladoPor,
+            voBoJefeServicio = jefeServicioNombre,
+            esConformePiloto = conformePiloto,
+            firmaPiloto = firmaPilotoBase64,
+            firmaJefeServicio = firmaJefeServicioBase64,
+            firmaPersonalDestacado = firmasParamTexto,
+            timestamp = System.currentTimeMillis()
+        )
+
+        val patients = if (!existenMasPacientes) {
+            listOf(PacienteData(
+                nombre = nombrePaciente,
+                apellidos = apellidoPaciente,
+                edad = edadPaciente,
+                sexo = sexoPaciente,
+                dpi = dpiPaciente,
+                domicilio = domicilioPaciente,
+                estado = estadoPaciente,
+                presionArterial = paPaciente,
+                frecuenciaCardiaca = fcPaciente,
+                frecuenciaRespiratoria = frPaciente,
+                saturacionOxigeno = satPaciente,
+                temperatura = tempPaciente,
+                glucosa = glucosaPaciente,
+                esFallecido = esFallecidoPaciente
+            ))
+        } else {
+            pacientesList.toList()
+        }
+
+        PdfHelper.generarReportePdf(context, emergencyData, patients)
     }
 
     private fun resetFields() {

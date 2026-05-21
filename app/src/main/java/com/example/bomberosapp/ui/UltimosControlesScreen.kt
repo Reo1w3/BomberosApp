@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import java.util.*
 @Composable
 fun UltimosControlesScreen(
     viewModel: AdminViewModel,
+    title: String = "ÚLTIMOS CONTROLES",
     onVolverClick: () -> Unit
 ) {
     val emergencies = viewModel.emergencies
@@ -45,7 +47,7 @@ fun UltimosControlesScreen(
     }
 
     Column(Modifier.fillMaxSize().background(Blanco).statusBarsPadding().navigationBarsPadding()) {
-        HeaderApp(title = "ÚLTIMOS CONTROLES", icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onVolverClick)
+        HeaderApp(title = title, icon = Icons.AutoMirrored.Filled.ArrowBack, onAction = onVolverClick)
 
         if (isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -151,7 +153,7 @@ fun EmergencyCard(emergency: Emergency) {
                     HorizontalDivider(color = RojoBomberos.copy(alpha = 0.3f), thickness = 2.dp)
                     Spacer(Modifier.height(12.dp))
                     
-                    DetailSection("1. DATOS DE SALIDA", Icons.Default.ExitToApp) {
+                    DetailSection("1. DATOS DE SALIDA", Icons.AutoMirrored.Filled.ExitToApp) {
                         DetailItem("Hora Salida", emergency.horaSalida)
                         DetailItem("Solicitante", "${emergency.nombreSolicitante} ${emergency.apellidoSolicitante}")
                         DetailItem("Teléfono", emergency.telefonoSolicitante)

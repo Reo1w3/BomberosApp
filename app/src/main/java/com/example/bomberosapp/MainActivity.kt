@@ -1,19 +1,11 @@
 package com.example.bomberosapp
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,12 +24,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -48,7 +39,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.data.model.Piloto
 import com.example.bomberosapp.data.model.Paramedico
@@ -57,13 +47,9 @@ import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoClaro
 import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
-import com.example.bomberosapp.ui.PacienteAcompananteScreen
-import com.example.bomberosapp.ui.components.SignatureDialog
-import com.example.bomberosapp.ui.components.OsmMapView
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import org.osmdroid.util.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -76,6 +62,7 @@ class MainActivity : ComponentActivity() {
             val loginViewModel: LoginViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        @Suppress("UNCHECKED_CAST")
                         return LoginViewModel(prefs = sharedPrefs) as T
                     }
                 }
@@ -94,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
                     BackHandler(enabled = currentScreen != "login") {
                         currentScreen = when (currentScreen) {
-                            "admin_list" -> "admin_home"
+                            "admin_todos_controles" -> "admin_home"
                             "admin_unidades" -> "admin_home"
                             "admin_nueva_unidad" -> "admin_unidades"
                             "admin_detalle_unidad" -> "admin_unidades"
@@ -105,9 +92,11 @@ class MainActivity : ComponentActivity() {
                             "admin_editar_piloto" -> "admin_detalle_piloto"
                             "admin_editar_paramedico" -> "admin_detalle_paramedico"
                             "admin_seleccion_tipo" -> "admin_fuerza_activa"
-                            "admin_nuevo_elemento" -> "admin_seleccion_tipo"
+                            "admin_nuevo_elemento_piloto" -> "admin_seleccion_tipo"
+                            "admin_nuevo_elemento_paramedico" -> "admin_seleccion_tipo"
                             "form" -> "home"
                             "ultimos_controles" -> "home"
+                            "solicitar_apoyo" -> "home"
                             else -> "login"
                         }
                     }
@@ -126,6 +115,9 @@ class MainActivity : ComponentActivity() {
                                     onUltimosControles = {
                                         currentScreen = "ultimos_controles"
                                     },
+                                    onSolicitarApoyo = {
+                                        currentScreen = "solicitar_apoyo"
+                                    },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
@@ -135,14 +127,22 @@ class MainActivity : ComponentActivity() {
                                     viewModel = adminViewModel,
                                     onVolverClick = { currentScreen = "home" }
                                 )
+                                "solicitar_apoyo" -> SolicitarApoyoScreen(
+                                    onVolverClick = { currentScreen = "home" }
+                                )
                                 "admin_home" -> AdminHomeScreen(
-                                    onList = { currentScreen = "admin_list" },
+                                    onList = { currentScreen = "admin_todos_controles" },
                                     onUnidades = { currentScreen = "admin_unidades" },
                                     onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
                                     }
+                                )
+                                "admin_todos_controles" -> UltimosControlesScreen(
+                                    viewModel = adminViewModel,
+                                    title = "HISTORIAL GENERAL",
+                                    onVolverClick = { currentScreen = "admin_home" }
                                 )
                                 "admin_fuerza_activa" -> {
                                     LaunchedEffect(Unit) {
@@ -235,11 +235,11 @@ class MainActivity : ComponentActivity() {
                                 "admin_nuevo_elemento_piloto" -> {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d ->
-                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
+                                        onContinuarClick = { n, a, i, c, t, d, psw ->
+                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
                                             FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
@@ -249,20 +249,16 @@ class MainActivity : ComponentActivity() {
                                 "admin_nuevo_elemento_paramedico" -> {
                                     NuevoElementoScreen(
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d ->
-                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank()) {
+                                        onContinuarClick = { n, a, i, c, t, d, psw ->
+                                            if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d)
+                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
                                             FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
                                         }
                                     )
-                                }
-                                "admin_list" -> {
-                                    LaunchedEffect(Unit) { adminViewModel.startObserving() }
-                                    AdminListScreen(adminViewModel) { currentScreen = "admin_home" }
                                 }
                                 "admin_unidades" -> {
                                     AdminUnidadesScreen(
@@ -315,8 +311,9 @@ class MainActivity : ComponentActivity() {
                         
                         if (currentScreen != "login") {
                             BottomNavBar(
-                                currentScreen = currentScreen,
-                                onHome = { if(currentScreen.contains("admin")) currentScreen = "admin_home" else currentScreen = "home" },
+                                onHome = { 
+                                    currentScreen = if(currentScreen.contains("admin")) "admin_home" else "home" 
+                                },
                                 onProfile = { /* Perfil */ }
                             )
                         }
@@ -441,12 +438,12 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 }
 
 @Composable
-fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onLogout: () -> Unit) {
+fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSolicitarApoyo: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
-        Column(Modifier.padding(20.dp)) {
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
-            Spacer(Modifier.height(16.dp))
+            
             Card(
                 Modifier.fillMaxWidth().height(80.dp).clickable { onUltimosControles() },
                 shape = RoundedCornerShape(12.dp),
@@ -456,6 +453,43 @@ fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onLog
                     Text("ÚLTIMOS CONTROLES", color = Color.White, fontWeight = FontWeight.Black)
                     Text("Toque para ver registros anteriores", color = Color.White, fontSize = 12.sp)
                 }
+            }
+
+            Card(
+                Modifier.fillMaxWidth().height(80.dp).clickable { onSolicitarApoyo() },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
+            ) {
+                Row(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Default.Phone, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("SOLICITAR APOYO", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        Text("Directorio de compañías", color = Color.White, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8)),
+                border = BorderStroke(1.dp, RojoBomberos.copy(alpha = 0.2f))
+            ) {
+                Text(
+                    text = "\"CUANDO HAY PELIGRO, DIOS ES ACLAMADO Y EL BOMBERO BUSCADO, CUANDO PASA EL PELIGRO, DIOS ES OLVIDADO Y EL BOMBERO IGNORADO\"",
+                    modifier = Modifier.padding(20.dp),
+                    textAlign = TextAlign.Center,
+                    color = Color.DarkGray,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
+                    lineHeight = 18.sp
+                )
             }
         }
     }
@@ -493,7 +527,7 @@ fun HeaderApp(
 }
 
 @Composable
-fun BottomNavBar(currentScreen: String, onHome: () -> Unit, onProfile: () -> Unit) {
+fun BottomNavBar(onHome: () -> Unit, onProfile: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth().height(56.dp).background(Color(0xFFE30613)), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).fillMaxHeight().clickable { onHome() }, contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Home, null, tint = Color.White, modifier = Modifier.size(28.dp))
@@ -637,6 +671,7 @@ fun AdminUnidadesScreen(onBack: () -> Unit, onAdd: () -> Unit, onUnitClick: (Uni
                 .await()
             unidades = snapshot.documents.mapNotNull { it.toObject(Unidad::class.java)?.copy(id = it.id) }
         } catch (e: Exception) {
+            // Ignorar
         } finally {
             isLoading = false
         }
@@ -1123,7 +1158,7 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
 fun DetalleItem(label: String, value: String) {
     Column(Modifier.padding(vertical = 8.dp)) {
         Text(text = label, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Gray)
-        Text(text = if (value.isEmpty()) "N/A" else value, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+        Text(text = value.ifEmpty { "N/A" }, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
         HorizontalDivider(modifier = Modifier.padding(top = 4.dp), thickness = 1.dp, color = Color.LightGray)
     }
 }
@@ -1164,7 +1199,7 @@ fun FieldInputAdmin(
 @Composable
 fun DropdownFieldAdmin(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    
+
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
@@ -1176,7 +1211,7 @@ fun DropdownFieldAdmin(label: String, options: List<String>, selected: String, o
             readOnly = true,
             placeholder = { Text(label, color = Color.LightGray, fontSize = 13.sp) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth().height(55.dp),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth().height(55.dp),
             shape = RoundedCornerShape(15.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Gray,
