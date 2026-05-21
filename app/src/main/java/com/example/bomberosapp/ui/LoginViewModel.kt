@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.data.repository.UserRepository
 import kotlinx.coroutines.launch
 
@@ -29,7 +30,7 @@ class LoginViewModel(
 
     fun getSavedUser(): String = prefs?.getString("saved_user", "") ?: ""
 
-    fun login(usuario: String, pass: String, rememberMe: Boolean, onLoginSuccess: () -> Unit) {
+    fun login(usuario: String, pass: String, rememberMe: Boolean, onLoginSuccess: (UserRole) -> Unit) {
         if (usuario.isBlank() || pass.isBlank()) {
             loginState = LoginUIState.Error("Complete todos los campos")
             return
@@ -37,15 +38,17 @@ class LoginViewModel(
 
         loginState = LoginUIState.Loading
         viewModelScope.launch {
-            val success = repository.login(usuario, pass)
-            if (success) {
+            val role = repository.login(usuario, pass)
+            if (role != UserRole.NONE) {
                 if (rememberMe) {
                     prefs?.edit()?.putString("saved_user", usuario)?.apply()
+                    prefs?.edit()?.putString("user_role", role.name)?.apply()
                 } else {
                     prefs?.edit()?.remove("saved_user")?.apply()
+                    prefs?.edit()?.remove("user_role")?.apply()
                 }
-                loginState = LoginUIState.Success
-                onLoginSuccess()
+                loginState = LoginUIState.Success(role)
+                onLoginSuccess(role)
             } else {
                 loginState = LoginUIState.Error("Credenciales Inválidas o Error de Conexión")
             }
@@ -60,6 +63,6 @@ class LoginViewModel(
 sealed class LoginUIState {
     object Idle : LoginUIState()
     object Loading : LoginUIState()
-    object Success : LoginUIState()
+    data class Success(val role: UserRole) : LoginUIState()
     data class Error(val message: String) : LoginUIState()
 }
