@@ -3,6 +3,27 @@ package com.example.bomberosapp.data.model
 import com.google.firebase.firestore.IgnoreExtraProperties
 
 @IgnoreExtraProperties
+data class PacienteData(
+    var id: String = "",
+    var nombre: String = "",
+    var apellidos: String = "",
+    var edad: String = "",
+    var sexo: String = "",
+    var dpi: String = "",
+    var domicilio: String = "",
+    var estado: String = "",
+    // Signos Vitales
+    var presionArterial: String = "",
+    var frecuenciaCardiaca: String = "",
+    var frecuenciaRespiratoria: String = "",
+    var saturacionOxigeno: String = "",
+    var temperatura: String = "",
+    var glucosa: String = "",
+    var esFallecido: Boolean = false,
+    var numeroEmergenciaRelacionado: String = ""
+)
+
+@IgnoreExtraProperties
 data class Emergency(
     val id: String = "",
     // Información del Servicio
@@ -25,18 +46,12 @@ data class Emergency(
     val telefonoSolicitante: String = "",
     val solicitudPorTelefono: Boolean = false,
     val direccionEmergencia: String = "",
-    val direccion: String = "",
     val tipoServicio: String = "",
     
-    // Datos del Paciente
-    val nombrePaciente: String = "",
-    val nombreCompletoPacientes: String = "",
-    val edadPaciente: String = "",
-    val generoPaciente: String = "",
-    val sexoPaciente: String = "",
-    val dpiPaciente: String = "",
-    val direccionPaciente: String = "",
-    val domicilioPaciente: String = "",
+    // Metadatos de pacientes
+    val nombrePaciente: String = "", // Added for quick reference in lists
+    val numeroPacientes: Int = 0,
+    val hayFallecidos: Boolean = false,
     
     // Acompañante
     val tieneAcompanante: Boolean = false,
@@ -44,20 +59,13 @@ data class Emergency(
     val apellidoAcompanante: String = "",
     val telefonoAcompanante: String = "",
     
-    // Evaluación Médica (Signos Vitales)
-    val presionArterial: String = "",
-    val frecuenciaCardiaca: String = "",
-    val frecuenciaRespiratoria: String = "",
-    val saturacionOxigeno: String = "",
-    val temperatura: String = "",
-    val glucosa: String = "",
-    
     // Traslado y Diagnóstico
     val diagnosticoPreliminar: String = "",
     val tieneTraslado: Boolean = false,
     val trasladoA: String = "",
     val hospitalTraslado: String = "",
-    val fallecidos: Boolean = false,
+    val direccionOrigenTraslado: String = "",
+    val direccionDestinoTraslado: String = "",
     val observaciones: String = "",
     
     // Personal y Firmas

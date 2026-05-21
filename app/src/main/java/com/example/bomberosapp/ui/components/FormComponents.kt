@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
@@ -21,18 +22,31 @@ fun CampoTextoEmergencia(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    readOnly: Boolean = false,
+    enabled: Boolean = true
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
+        placeholder = if (placeholder.isNotEmpty()) { { Text(placeholder, color = Color.Gray) } } else null,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        keyboardOptions = keyboardOptions,
+        trailingIcon = trailingIcon,
+        readOnly = readOnly,
+        enabled = enabled,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = RojoBomberos,
             unfocusedBorderColor = Color.LightGray,
-            focusedLabelColor = RojoBomberos
+            focusedLabelColor = RojoBomberos,
+            disabledBorderColor = Color.LightGray,
+            disabledTextColor = Color.Black,
+            disabledLabelColor = Color.Gray
         )
     )
 }
@@ -42,6 +56,7 @@ fun CampoTextoEmergencia(
 fun DropdownFieldSimple(
     options: List<String>,
     selectedOption: String,
+    label: String = "",
     onOptionSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -51,14 +66,16 @@ fun DropdownFieldSimple(
             value = selectedOption,
             onValueChange = {},
             readOnly = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = if (label.isNotEmpty()) { { Text(label) } } else null,
+            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
             shape = RoundedCornerShape(12.dp),
             trailingIcon = {
-                Icon(
-                    Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    Modifier.clickable { expanded = !expanded }
-                )
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = null
+                    )
+                }
             },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = RojoBomberos,
