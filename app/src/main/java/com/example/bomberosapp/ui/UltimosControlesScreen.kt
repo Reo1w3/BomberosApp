@@ -1,5 +1,6 @@
 package com.example.bomberosapp.ui
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +26,7 @@ import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.data.model.PacienteData
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.utils.PdfHelper
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -71,6 +74,7 @@ fun EmergencyCard(emergency: Emergency) {
     var expanded by remember { mutableStateOf(false) }
     var patients by remember { mutableStateOf<List<PacienteData>>(emptyList()) }
     var loadingPatients by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
     val dateText = sdf.format(Date(emergency.timestamp))
@@ -218,6 +222,20 @@ fun EmergencyCard(emergency: Emergency) {
                         DetailItem("Llegada Incidente", emergency.horaLlegada)
                         DetailItem("Formulado Por", emergency.reporteFormuladoPor)
                         DetailItem("Vo.Bo. Jefe", emergency.voBoJefeServicio)
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // BOTÓN DE EXPORTAR PDF
+                    Button(
+                        onClick = { PdfHelper.generarReportePdf(context, emergency, patients) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.PictureAsPdf, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("EXPORTAR REPORTE A PDF", fontWeight = FontWeight.Black)
                     }
                 }
             }
