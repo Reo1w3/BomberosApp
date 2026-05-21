@@ -57,9 +57,6 @@ import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoClaro
 import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
-import com.example.bomberosapp.ui.PacienteAcompananteScreen
-import com.example.bomberosapp.ui.components.SignatureDialog
-import com.example.bomberosapp.ui.components.OsmMapView
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -108,6 +105,7 @@ class MainActivity : ComponentActivity() {
                             "admin_nuevo_elemento" -> "admin_seleccion_tipo"
                             "form" -> "home"
                             "ultimos_controles" -> "home"
+                            "solicitar_apoyo" -> "home"
                             else -> "login"
                         }
                     }
@@ -126,6 +124,9 @@ class MainActivity : ComponentActivity() {
                                     onUltimosControles = {
                                         currentScreen = "ultimos_controles"
                                     },
+                                    onSolicitarApoyo = {
+                                        currentScreen = "solicitar_apoyo"
+                                    },
                                     onLogout = {
                                         loginViewModel.resetState()
                                         currentScreen = "login"
@@ -133,6 +134,9 @@ class MainActivity : ComponentActivity() {
                                 )
                                 "ultimos_controles" -> UltimosControlesScreen(
                                     viewModel = adminViewModel,
+                                    onVolverClick = { currentScreen = "home" }
+                                )
+                                "solicitar_apoyo" -> SolicitarApoyoScreen(
                                     onVolverClick = { currentScreen = "home" }
                                 )
                                 "admin_home" -> AdminHomeScreen(
@@ -441,12 +445,12 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 }
 
 @Composable
-fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onLogout: () -> Unit) {
+fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSolicitarApoyo: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
-        Column(Modifier.padding(20.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
-            Spacer(Modifier.height(16.dp))
+            
             Card(
                 Modifier.fillMaxWidth().height(80.dp).clickable { onUltimosControles() },
                 shape = RoundedCornerShape(12.dp),
@@ -455,6 +459,21 @@ fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onLog
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text("ÚLTIMOS CONTROLES", color = Color.White, fontWeight = FontWeight.Black)
                     Text("Toque para ver registros anteriores", color = Color.White, fontSize = 12.sp)
+                }
+            }
+
+            Card(
+                Modifier.fillMaxWidth().height(80.dp).clickable { onSolicitarApoyo() },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
+            ) {
+                Row(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Default.Phone, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("SOLICITAR APOYO", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        Text("Directorio de compañías", color = Color.White, fontSize = 12.sp)
+                    }
                 }
             }
         }
