@@ -1,10 +1,7 @@
 package com.example.bomberosapp.ui
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Base64
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -31,13 +28,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 @Composable
@@ -73,7 +71,7 @@ fun NuevoElementoScreen(
     // Paramedico Fields
     var especialidad by remember { mutableStateOf("") }
     var certificacion by remember { mutableStateOf("") }
-    var experiencia by remember { mutableStateOf("") }
+    var experiencia by remember { mutableStateOf("") } 
 
     // Common
     var turno by remember { mutableStateOf("") }
@@ -82,7 +80,13 @@ fun NuevoElementoScreen(
     val scrollState = rememberScrollState()
 
     val tiposLicencia = listOf("TIPO A", "TIPO B", "TIPO C", "TIPO M")
-    val turnos = listOf("TURNO A", "TURNO B", "TURNO C", "REFUERZO")
+    val turnos = listOf("GUARDIA A", "GUARDIA B", "GUARDIA C", "CAMBIO DE TURNO (8 HORAS)", "PERSONAL PERMANENTE")
+    val especialidadesParamedico = listOf(
+        "TECNICO EN ATENCION PREHOSPITALARIA",
+        "COMBATE DE INCENDIOS AVANZADOS",
+        "FUERZA DE RESCATE ESPECIALIZADO",
+        "AREAS TECNICAS DE PREVENCION"
+    )
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -127,30 +131,37 @@ fun NuevoElementoScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             
-            // SECCIÓN FOTO DE PERFIL
+            // SECCIÓN FOTO DE PERFIL - CENTRADO PROFESIONAL MEJORADO
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(15.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Blanco),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = BorderStroke(1.dp, RojoBomberos.copy(alpha = 0.15f))
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = "FOTO DE PERFIL",
                         fontWeight = FontWeight.Black,
                         color = RojoBomberos,
-                        fontSize = 14.sp
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
                     )
-                    Spacer(Modifier.height(12.dp))
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
                     Box(
                         modifier = Modifier
-                            .size(120.dp)
+                            .size(135.dp)
                             .clip(CircleShape)
-                            .background(Color.LightGray)
-                            .border(2.dp, RojoBomberos, CircleShape)
+                            .background(Color.LightGray.copy(alpha = 0.2f))
+                            .border(3.5.dp, RojoBomberos, CircleShape)
                             .clickable { imagePickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -165,11 +176,31 @@ fun NuevoElementoScreen(
                                 )
                             }
                         } else {
-                            Icon(Icons.Default.AddAPhoto, "Add Photo", tint = Color.White, modifier = Modifier.size(40.dp))
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto, 
+                                contentDescription = null, 
+                                tint = RojoBomberos.copy(alpha = 0.7f), 
+                                modifier = Modifier.size(48.dp)
+                            )
                         }
                     }
-                    TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                        Text(if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", color = RojoBomberos)
+                    
+                    Spacer(Modifier.height(14.dp))
+                    
+                    Button(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, null, tint = Blanco, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", 
+                            color = Blanco,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }
@@ -179,12 +210,12 @@ fun NuevoElementoScreen(
                 title = "1. DATOS PERSONALES",
                 isCompleted = nombres.isNotBlank() && apellidos.isNotBlank()
             ) {
-                CampoTextoEmergencia(
+                CampoTextoMicrofono(
                     label = "Nombres",
                     value = nombres,
                     onValueChange = { nombres = it }
                 )
-                CampoTextoEmergencia(
+                CampoTextoMicrofono(
                     label = "Apellidos",
                     value = apellidos,
                     onValueChange = { apellidos = it }
@@ -208,7 +239,7 @@ fun NuevoElementoScreen(
                     onValueChange = { if (it.all { char -> char.isDigit() }) telefono = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
-                CampoTextoEmergencia(
+                CampoTextoGPS(
                     label = "Dirección",
                     value = direccion,
                     onValueChange = { direccion = it }
@@ -223,7 +254,8 @@ fun NuevoElementoScreen(
                 CampoTextoEmergencia(
                     label = "Código de Elemento",
                     value = codigoElemento,
-                    onValueChange = { codigoElemento = it }
+                    onValueChange = { if (it.all { char -> char.isDigit() }) codigoElemento = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
                 
                 DropdownFieldSimple(
@@ -270,13 +302,13 @@ fun NuevoElementoScreen(
                     CampoTextoEmergencia(
                         label = "Número de Licencia",
                         value = numeroLicencia,
-                        onValueChange = { numeroLicencia = it }
+                        onValueChange = { if (it.all { char -> char.isDigit() }) numeroLicencia = it },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    CampoTextoEmergencia(
+                    CampoFechaPicker(
                         label = "Fecha de Vencimiento",
                         value = fechaVencimiento,
-                        onValueChange = { fechaVencimiento = it },
-                        placeholder = "DD/MM/AAAA"
+                        onValueChange = { fechaVencimiento = it }
                     )
                 }
             } else if (tipo == "Paramedico") {
@@ -284,15 +316,18 @@ fun NuevoElementoScreen(
                     title = "4. ESPECIALIDAD Y CERTIFICACIÓN",
                     isCompleted = especialidad.isNotBlank()
                 ) {
-                    CampoTextoEmergencia(
+                    DropdownFieldSimple(
                         label = "Especialidad",
-                        value = especialidad,
-                        onValueChange = { especialidad = it }
+                        options = especialidadesParamedico,
+                        selectedOption = especialidad,
+                        onOptionSelected = { especialidad = it }
                     )
                     CampoTextoEmergencia(
                         label = "Certificación",
                         value = certificacion,
-                        onValueChange = { certificacion = it }
+                        placeholder = "INGRESAR EL NUMERO DE CERTIFICACION",
+                        onValueChange = { if (it.all { char -> char.isDigit() }) certificacion = it },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     CampoTextoEmergencia(
                         label = "Años de Experiencia",
@@ -322,22 +357,22 @@ fun NuevoElementoScreen(
                 Button(
                     onClick = {
                         if (isFormValid) {
-                            val extraFields = mutableMapOf<String, String>()
-                            extraFields["turno"] = turno
+                            val extraFieldsMap = mutableMapOf<String, String>()
+                            extraFieldsMap["turno"] = turno
                             if (tipo == "Piloto") {
-                                extraFields["tipoLicencia"] = tipoLicencia
-                                extraFields["numeroLicencia"] = numeroLicencia
-                                extraFields["fechaVencimiento"] = fechaVencimiento
+                                extraFieldsMap["tipoLicencia"] = tipoLicencia
+                                extraFieldsMap["numeroLicencia"] = numeroLicencia
+                                extraFieldsMap["fechaVencimiento"] = fechaVencimiento
                             } else {
-                                extraFields["especialidad"] = especialidad
-                                extraFields["certificacion"] = certificacion
-                                extraFields["experiencia"] = experiencia
+                                extraFieldsMap["especialidad"] = especialidad
+                                extraFieldsMap["certificacion"] = certificacion
+                                extraFieldsMap["experiencia"] = experiencia
                             }
 
                             onContinuarClick(
                                 nombres, apellidos, numeroIdentificacion,
                                 codigoElemento, telefono, direccion, contrasena, fotoBase64,
-                                extraFields
+                                extraFieldsMap
                             )
                         } else {
                             Toast.makeText(context, "Por favor complete los campos obligatorios", Toast.LENGTH_SHORT).show()
