@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.GrisCard
@@ -43,7 +44,16 @@ import com.example.bomberosapp.ui.theme.RojoClaro
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.material.icons.filled.Person
 
 @Composable
 fun DetallePilotoScreen(
@@ -91,8 +101,35 @@ fun DetallePilotoScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .verticalScroll(rememberScrollState())
-                                .padding(24.dp)
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.LightGray)
+                                    .border(2.dp, RojoBomberos, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (piloto.fotoBase64.isNotEmpty()) {
+                                    val bitmap = decodeBase64ToBitmap(piloto.fotoBase64)
+                                    
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = "Foto de Perfil",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } ?: Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                                } else {
+                                    Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             CampoDetalle("NOMBRES", piloto.nombres)
                             CampoDetalle("APELLIDOS", piloto.apellidos)
                             CampoDetalle("NÚMERO DE IDENTIFICACIÓN", piloto.numeroIdentificacion)

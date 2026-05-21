@@ -1,5 +1,6 @@
 package com.example.bomberosapp.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -33,8 +35,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.data.model.Piloto
+import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
 
@@ -124,6 +130,7 @@ fun FuerzaActivaScreen(
                                         nombre = "${piloto.nombres} ${piloto.apellidos}",
                                         codigo = piloto.codigoElemento,
                                         icon = Icons.Default.DirectionsCar,
+                                        fotoBase64 = piloto.fotoBase64,
                                         onClick = { onVerDetallePiloto(piloto) }
                                     )
                                 }
@@ -144,6 +151,7 @@ fun FuerzaActivaScreen(
                                         nombre = "${paramedico.nombres} ${paramedico.apellidos}",
                                         codigo = paramedico.codigoElemento,
                                         icon = Icons.Default.LocalHospital,
+                                        fotoBase64 = paramedico.fotoBase64,
                                         onClick = { onVerDetalleParamedico(paramedico) }
                                     )
                                 }
@@ -187,6 +195,7 @@ fun CardElementoSimple(
     nombre: String,
     codigo: String,
     icon: ImageVector,
+    fotoBase64: String = "",
     onClick: () -> Unit
 ) {
     Card(
@@ -209,15 +218,33 @@ fun CardElementoSimple(
             Box(
                 modifier = Modifier
                     .size(45.dp)
-                    .background(RojoBomberos, RoundedCornerShape(10.dp)),
+                    .clip(CircleShape)
+                    .background(if (fotoBase64.isEmpty()) RojoBomberos else Color.LightGray),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Blanco,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (fotoBase64.isNotEmpty()) {
+                    val bitmap = decodeBase64ToBitmap(fotoBase64)
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Blanco,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Blanco,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))

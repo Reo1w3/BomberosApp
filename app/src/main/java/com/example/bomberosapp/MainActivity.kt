@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.data.model.Piloto
 import com.example.bomberosapp.data.model.Paramedico
+import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.ui.*
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
@@ -73,6 +74,8 @@ class MainActivity : ComponentActivity() {
             val paramedicoViewModel: ParamedicoViewModel = viewModel()
             
             var currentScreen by remember { mutableStateOf("login") }
+            var currentUserCode by remember { mutableStateOf("") }
+            var currentUserRole by remember { mutableStateOf(UserRole.NONE) }
             var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
             var selectedPiloto by remember { mutableStateOf<Piloto?>(null) }
             var selectedParamedico by remember { mutableStateOf<Paramedico?>(null) }
@@ -97,6 +100,7 @@ class MainActivity : ComponentActivity() {
                             "form" -> "home"
                             "ultimos_controles" -> "home"
                             "solicitar_apoyo" -> "home"
+                            "profile" -> if (currentUserRole == UserRole.ADMIN) "admin_home" else "home"
                             else -> "login"
                         }
                     }
@@ -104,8 +108,10 @@ class MainActivity : ComponentActivity() {
                     Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) {
                             when (currentScreen) {
-                                "login" -> LoginScreen(loginViewModel) { user ->
-                                    currentScreen = if (user == "0" || user == "123") "admin_home" else "home"
+                                "login" -> LoginScreen(loginViewModel) { userCode, role ->
+                                    currentUserCode = userCode
+                                    currentUserRole = role
+                                    currentScreen = if (role == UserRole.ADMIN) "admin_home" else "home"
                                 }
                                 "home" -> HomeScreen(
                                     onNewEmergency = {
@@ -234,12 +240,27 @@ class MainActivity : ComponentActivity() {
                                 }
                                 "admin_nuevo_elemento_piloto" -> {
                                     NuevoElementoScreen(
+                                        tipo = "Piloto",
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d, psw ->
+                                        onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Piloto(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
+                                            val p = Piloto(
+                                                id = "",
+                                                nombres = n,
+                                                apellidos = a,
+                                                numeroIdentificacion = i,
+                                                codigoElemento = c,
+                                                telefono = t,
+                                                direccion = d,
+                                                contrasena = psw,
+                                                fotoBase64 = foto,
+                                                tipoLicencia = extra["tipoLicencia"] ?: "",
+                                                numeroLicencia = extra["numeroLicencia"] ?: "",
+                                                fechaVencimiento = extra["fechaVencimiento"] ?: "",
+                                                turno = extra["turno"] ?: ""
+                                            )
                                             FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
@@ -248,12 +269,27 @@ class MainActivity : ComponentActivity() {
                                 }
                                 "admin_nuevo_elemento_paramedico" -> {
                                     NuevoElementoScreen(
+                                        tipo = "Paramedico",
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
-                                        onContinuarClick = { n, a, i, c, t, d, psw ->
+                                        onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
                                                 return@NuevoElementoScreen
                                             }
-                                            val p = Paramedico(id = "", nombres = n, apellidos = a, numeroIdentificacion = i, codigoElemento = c, telefono = t, direccion = d, contrasena = psw)
+                                            val p = Paramedico(
+                                                id = "",
+                                                nombres = n,
+                                                apellidos = a,
+                                                numeroIdentificacion = i,
+                                                codigoElemento = c,
+                                                telefono = t,
+                                                direccion = d,
+                                                contrasena = psw,
+                                                fotoBase64 = foto,
+                                                especialidad = extra["especialidad"] ?: "",
+                                                certificacion = extra["certificacion"] ?: "",
+                                                experiencia = extra["experiencia"] ?: "",
+                                                turno = extra["turno"] ?: ""
+                                            )
                                             FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
                                                 currentScreen = "admin_fuerza_activa"
                                             }
@@ -306,6 +342,14 @@ class MainActivity : ComponentActivity() {
                                     onVolverClick = { currentScreen = "home" },
                                     onFinalizarClick = { currentScreen = "home" }
                                 )
+                                "profile" -> ProfileScreen(
+                                    userName = currentUserCode,
+                                    userRole = currentUserRole,
+                                    onLogout = {
+                                        loginViewModel.resetState()
+                                        currentScreen = "login"
+                                    }
+                                )
                             }
                         }
                         
@@ -314,7 +358,7 @@ class MainActivity : ComponentActivity() {
                                 onHome = { 
                                     currentScreen = if(currentScreen.contains("admin")) "admin_home" else "home" 
                                 },
-                                onProfile = { /* Perfil */ }
+                                onProfile = { currentScreen = "profile" }
                             )
                         }
                     }
@@ -325,7 +369,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
+fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String, UserRole) -> Unit) {
     val savedUser = viewModel.getSavedUser()
     var user by remember { mutableStateOf(savedUser) }
     var pass by remember { mutableStateOf("") }
@@ -406,7 +450,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String) -> Unit) {
                     }
 
                     Button(
-                        onClick = { viewModel.login(user, pass, rememberMe) { onLoginSuccess(user) } },
+                        onClick = { viewModel.login(user, pass, rememberMe) { role -> onLoginSuccess(user, role) } },
                         modifier = Modifier.fillMaxWidth().height(60.dp),
                         enabled = state !is LoginUIState.Loading,
                         colors = ButtonDefaults.buttonColors(containerColor = RojoClaro),

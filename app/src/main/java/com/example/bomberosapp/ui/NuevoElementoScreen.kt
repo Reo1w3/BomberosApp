@@ -1,58 +1,48 @@
 package com.example.bomberosapp.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
-import com.example.bomberosapp.R
+import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
-import com.example.bomberosapp.ui.theme.RojoClaro
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
 @Composable
 fun NuevoElementoScreen(
+    tipo: String = "Piloto",
     onContinuarClick: (
         nombres: String,
         apellidos: String,
@@ -60,7 +50,9 @@ fun NuevoElementoScreen(
         codigoElemento: String,
         telefono: String,
         direccion: String,
-        contrasena: String
+        contrasena: String,
+        fotoBase64: String,
+        extraFields: Map<String, String>
     ) -> Unit,
     onVolverClick: () -> Unit
 ) {
@@ -71,8 +63,36 @@ fun NuevoElementoScreen(
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
+    var fotoBase64 by remember { mutableStateOf("") }
 
+    // Piloto Fields
+    var tipoLicencia by remember { mutableStateOf("") }
+    var numeroLicencia by remember { mutableStateOf("") }
+    var fechaVencimiento by remember { mutableStateOf("") }
+
+    // Paramedico Fields
+    var especialidad by remember { mutableStateOf("") }
+    var certificacion by remember { mutableStateOf("") }
+    var experiencia by remember { mutableStateOf("") }
+
+    // Common
+    var turno by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val tiposLicencia = listOf("TIPO A", "TIPO B", "TIPO C", "TIPO M")
+    val turnos = listOf("TURNO A", "TURNO B", "TURNO C", "REFUERZO")
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(it)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            fotoBase64 = encodeImageToBase64(bitmap)
+        }
+    }
 
     fun generarContrasena() {
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
@@ -80,6 +100,12 @@ fun NuevoElementoScreen(
             .map { chars.random() }
             .joinToString("")
     }
+
+    val isFormValid = nombres.isNotBlank() && 
+                     apellidos.isNotBlank() && 
+                     numeroIdentificacion.isNotBlank() && 
+                     codigoElemento.isNotBlank() && 
+                     contrasena.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -97,219 +123,235 @@ fun NuevoElementoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            
+            // SECCIÓN FOTO DE PERFIL
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(8.dp, RojoBomberos, RoundedCornerShape(30.dp)),
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco)
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "INGRESE LOS DATOS",
-                        color = RojoBomberos,
-                        fontSize = 18.sp,
+                        text = "FOTO DE PERFIL",
                         fontWeight = FontWeight.Black,
-                        modifier = Modifier.fillMaxWidth()
+                        color = RojoBomberos,
+                        fontSize = 14.sp
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    CampoNuevoElemento(
-                        label = "NOMBRES",
-                        value = nombres,
-                        onValueChange = { nombres = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    CampoNuevoElemento(
-                        label = "APELLIDOS",
-                        value = apellidos,
-                        onValueChange = { apellidos = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    CampoNuevoElementoNumero(
-                        label = "NÚMERO DE IDENTIFICACIÓN PERSONAL",
-                        value = numeroIdentificacion,
-                        onValueChange = { numeroIdentificacion = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    CampoNuevoElementoNumero(
-                        label = "INGRESE CÓDIGO DE ELEMENTO",
-                        value = codigoElemento,
-                        onValueChange = { codigoElemento = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    CampoNuevoElementoNumero(
-                        label = "TELÉFONO",
-                        value = telefono,
-                        onValueChange = { telefono = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    CampoNuevoElemento(
-                        label = "DIRECCIÓN",
-                        value = direccion,
-                        onValueChange = { direccion = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Spacer(Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(Color.LightGray)
+                            .border(2.dp, RojoBomberos, CircleShape)
+                            .clickable { imagePickerLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            CampoNuevoElemento(
-                                label = "CONTRASEÑA",
-                                value = contrasena,
-                                onValueChange = { contrasena = it }
-                            )
-                        }
-                        Button(
-                            onClick = { generarContrasena() },
-                            colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(56.dp)
-                        ) {
-                            Text("GENERAR", fontSize = 10.sp)
+                        if (fotoBase64.isNotEmpty()) {
+                            val bitmap = decodeBase64ToBitmap(fotoBase64)
+                            bitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = "Profile Photo",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        } else {
+                            Icon(Icons.Default.AddAPhoto, "Add Photo", tint = Color.White, modifier = Modifier.size(40.dp))
                         }
                     }
+                    TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                        Text(if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", color = RojoBomberos)
+                    }
+                }
+            }
+
+            // SECCIÓN 1: DATOS PERSONALES
+            ExpandableSection(
+                title = "1. DATOS PERSONALES",
+                isCompleted = nombres.isNotBlank() && apellidos.isNotBlank()
+            ) {
+                CampoTextoEmergencia(
+                    label = "Nombres",
+                    value = nombres,
+                    onValueChange = { nombres = it }
+                )
+                CampoTextoEmergencia(
+                    label = "Apellidos",
+                    value = apellidos,
+                    onValueChange = { apellidos = it }
+                )
+                CampoTextoEmergencia(
+                    label = "DPI / Identificación",
+                    value = numeroIdentificacion,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) numeroIdentificacion = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+
+            // SECCIÓN 2: DATOS DE CONTACTO
+            ExpandableSection(
+                title = "2. DATOS DE CONTACTO",
+                isCompleted = telefono.isNotBlank() && direccion.isNotBlank()
+            ) {
+                CampoTextoEmergencia(
+                    label = "Teléfono",
+                    value = telefono,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) telefono = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                CampoTextoEmergencia(
+                    label = "Dirección",
+                    value = direccion,
+                    onValueChange = { direccion = it }
+                )
+            }
+
+            // SECCIÓN 3: DATOS INSTITUCIONALES
+            ExpandableSection(
+                title = "3. DATOS INSTITUCIONALES",
+                isCompleted = codigoElemento.isNotBlank() && contrasena.isNotBlank()
+            ) {
+                CampoTextoEmergencia(
+                    label = "Código de Elemento",
+                    value = codigoElemento,
+                    onValueChange = { codigoElemento = it }
+                )
+                
+                DropdownFieldSimple(
+                    label = "Turno Asignado",
+                    options = turnos,
+                    selectedOption = turno,
+                    onOptionSelected = { turno = it }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        CampoTextoEmergencia(
+                            label = "Contraseña de Acceso",
+                            value = contrasena,
+                            onValueChange = { contrasena = it }
+                        )
+                    }
+                    Button(
+                        onClick = { generarContrasena() },
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(56.dp).padding(top = 8.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+
+            if (tipo == "Piloto") {
+                ExpandableSection(
+                    title = "4. INFORMACIÓN DE LICENCIA",
+                    isCompleted = numeroLicencia.isNotBlank()
+                ) {
+                    DropdownFieldSimple(
+                        label = "Tipo de Licencia",
+                        options = tiposLicencia,
+                        selectedOption = tipoLicencia,
+                        onOptionSelected = { tipoLicencia = it }
+                    )
+                    CampoTextoEmergencia(
+                        label = "Número de Licencia",
+                        value = numeroLicencia,
+                        onValueChange = { numeroLicencia = it }
+                    )
+                    CampoTextoEmergencia(
+                        label = "Fecha de Vencimiento",
+                        value = fechaVencimiento,
+                        onValueChange = { fechaVencimiento = it },
+                        placeholder = "DD/MM/AAAA"
+                    )
+                }
+            } else if (tipo == "Paramedico") {
+                ExpandableSection(
+                    title = "4. ESPECIALIDAD Y CERTIFICACIÓN",
+                    isCompleted = especialidad.isNotBlank()
+                ) {
+                    CampoTextoEmergencia(
+                        label = "Especialidad",
+                        value = especialidad,
+                        onValueChange = { especialidad = it }
+                    )
+                    CampoTextoEmergencia(
+                        label = "Certificación",
+                        value = certificacion,
+                        onValueChange = { certificacion = it }
+                    )
+                    CampoTextoEmergencia(
+                        label = "Años de Experiencia",
+                        value = experiencia,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) experiencia = it },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // BOTONES DE ACCIÓN
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Button(
+                OutlinedButton(
                     onClick = onVolverClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    border = BorderStroke(1.dp, RojoBomberos),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text(
-                        text = "VOLVER",
-                        color = Blanco,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("VOLVER", color = RojoBomberos, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
                     onClick = {
-                        onContinuarClick(
-                            nombres,
-                            apellidos,
-                            numeroIdentificacion,
-                            codigoElemento,
-                            telefono,
-                            direccion,
-                            contrasena
-                        )
+                        if (isFormValid) {
+                            val extraFields = mutableMapOf<String, String>()
+                            extraFields["turno"] = turno
+                            if (tipo == "Piloto") {
+                                extraFields["tipoLicencia"] = tipoLicencia
+                                extraFields["numeroLicencia"] = numeroLicencia
+                                extraFields["fechaVencimiento"] = fechaVencimiento
+                            } else {
+                                extraFields["especialidad"] = especialidad
+                                extraFields["certificacion"] = certificacion
+                                extraFields["experiencia"] = experiencia
+                            }
+
+                            onContinuarClick(
+                                nombres, apellidos, numeroIdentificacion,
+                                codigoElemento, telefono, direccion, contrasena, fotoBase64,
+                                extraFields
+                            )
+                        } else {
+                            Toast.makeText(context, "Por favor complete los campos obligatorios", Toast.LENGTH_SHORT).show()
+                        }
                     },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .border(1.dp, Color.Black, RoundedCornerShape(25.dp)),
+                    modifier = Modifier.weight(1f).height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                    shape = RoundedCornerShape(25.dp)
+                    shape = RoundedCornerShape(25.dp),
+                    enabled = isFormValid
                 ) {
-                    Text(
-                        text = "CONTINUAR",
-                        color = Blanco,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("CONTINUAR", color = Blanco, fontWeight = FontWeight.Bold)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@Composable
-fun CampoNuevoElemento(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = RojoBomberos,
-                unfocusedBorderColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            )
-        )
-    }
-}
-
-@Composable
-fun CampoNuevoElementoNumero(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE0BABA),
-                unfocusedBorderColor = Color(0xFFE0BABA),
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            )
-        )
     }
 }

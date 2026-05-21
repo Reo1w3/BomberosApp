@@ -13,6 +13,8 @@ data class Piloto(
     val fechaVencimiento: String = "",
     val turno: String = "",
     val contrasena: String = "",
+    val fotoUrl: String = "",
+    val fotoBase64: String = "",
     val tipoElemento: String = "Piloto",
     val timestamp: Long = System.currentTimeMillis()
 )

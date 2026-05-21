@@ -41,6 +41,8 @@ import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.PacienteData
 import com.example.bomberosapp.ui.components.CampoTextoEmergencia
 import com.example.bomberosapp.ui.components.DropdownFieldSimple
+import com.example.bomberosapp.ui.components.CampoTextoEmergencia
+import com.example.bomberosapp.ui.components.ExpandableSection
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.components.OsmMapView
@@ -695,47 +697,6 @@ fun SignatureField(
                     Spacer(Modifier.width(4.dp))
                     Text("BORRAR", fontSize = 11.sp, fontWeight = FontWeight.Black)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun ExpandableSection(
-    title: String,
-    isCompleted: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val borderColor = if (isCompleted) Color(0xFF4CAF50) else RojoBomberos
-    val titleColor = if (isCompleted) Color(0xFF2E7D32) else RojoBomberos
-
-    Card(
-        modifier = Modifier.fillMaxWidth().border(2.dp, borderColor, RoundedCornerShape(15.dp)),
-        shape = RoundedCornerShape(15.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = title, fontWeight = FontWeight.Black, color = titleColor, fontSize = 16.sp)
-                    if (isCompleted) {
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.CheckCircle, "Completado", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
-                    }
-                }
-                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = titleColor)
-            }
-            AnimatedVisibility(expanded) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    content = content
-                )
             }
         }
     }
