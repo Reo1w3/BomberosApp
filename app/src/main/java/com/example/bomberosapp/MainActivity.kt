@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -448,7 +449,7 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSolicitarApoyo: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
             
             Card(
@@ -475,6 +476,28 @@ fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSol
                         Text("Directorio de compañías", color = Color.White, fontSize = 12.sp)
                     }
                 }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8)),
+                border = BorderStroke(1.dp, RojoBomberos.copy(alpha = 0.2f))
+            ) {
+                Text(
+                    text = "\"CUANDO HAY PELIGRO, DIOS ES ACLAMADO Y EL BOMBERO BUSCADO, CUANDO PASA EL PELIGRO, DIOS ES OLVIDADO Y EL BOMBERO IGNORADO\"",
+                    modifier = Modifier.padding(20.dp),
+                    textAlign = TextAlign.Center,
+                    color = Color.DarkGray,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
+                    lineHeight = 18.sp
+                )
             }
         }
     }
