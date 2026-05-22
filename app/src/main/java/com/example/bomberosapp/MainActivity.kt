@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
         val sharedPrefs = getSharedPreferences("bomberos_prefs", Context.MODE_PRIVATE)
 
         setContent {
+            val context = LocalContext.current
             val loginViewModel: LoginViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -224,6 +225,7 @@ class MainActivity : ComponentActivity() {
                                             onGuardarClick = { updated ->
                                                 pilotoViewModel.actualizarPiloto(updated) {
                                                     selectedPiloto = updated
+                                                    Toast.makeText(context, "CAMBIOS GUARDADOS EXITOSAMENTE", Toast.LENGTH_SHORT).show()
                                                     currentScreen = "admin_detalle_piloto"
                                                 }
                                             }
@@ -238,6 +240,7 @@ class MainActivity : ComponentActivity() {
                                             onGuardarClick = { updated ->
                                                 paramedicoViewModel.actualizarParamedico(updated) {
                                                     selectedParamedico = updated
+                                                    Toast.makeText(context, "CAMBIOS GUARDADOS EXITOSAMENTE", Toast.LENGTH_SHORT).show()
                                                     currentScreen = "admin_detalle_paramedico"
                                                 }
                                             }
@@ -261,6 +264,7 @@ class MainActivity : ComponentActivity() {
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
+                                                Toast.makeText(context, "Complete campos obligatorios", Toast.LENGTH_SHORT).show()
                                                 return@NuevoElementoScreen
                                             }
                                             val p = Piloto(
@@ -278,9 +282,14 @@ class MainActivity : ComponentActivity() {
                                                 fechaVencimiento = extra["fechaVencimiento"] ?: "",
                                                 turno = extra["turno"] ?: ""
                                             )
-                                            FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
-                                                currentScreen = "admin_fuerza_activa"
-                                            }
+                                            FirebaseFirestore.getInstance().collection("piloto").add(p)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "PILOTO REGISTRADO EXITOSAMENTE", Toast.LENGTH_SHORT).show()
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "ERROR AL GUARDAR: ${e.message}", Toast.LENGTH_LONG).show()
+                                                }
                                         }
                                     )
                                 }
@@ -290,6 +299,7 @@ class MainActivity : ComponentActivity() {
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
+                                                Toast.makeText(context, "Complete campos obligatorios", Toast.LENGTH_SHORT).show()
                                                 return@NuevoElementoScreen
                                             }
                                             val p = Paramedico(
@@ -307,9 +317,14 @@ class MainActivity : ComponentActivity() {
                                                 experiencia = extra["experiencia"] ?: "",
                                                 turno = extra["turno"] ?: ""
                                             )
-                                            FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
-                                                currentScreen = "admin_fuerza_activa"
-                                            }
+                                            FirebaseFirestore.getInstance().collection("paramedico").add(p)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "PARAMÉDICO REGISTRADO EXITOSAMENTE", Toast.LENGTH_SHORT).show()
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "ERROR AL GUARDAR: ${e.message}", Toast.LENGTH_LONG).show()
+                                                }
                                         }
                                     )
                                 }
@@ -1119,6 +1134,20 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                             FieldLabelAdmin("ESTADO DE LA UNIDAD")
                             DropdownFieldAdmin("SELECCIONAR", estadosList, estadoU) { estadoU = it }
 
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("UBICACIÓN ACTUAL (GPS)")
+                            var coordText by remember(unidadAEditar) { 
+                                mutableStateOf(if(unidadAEditar != null) "${unidadAEditar.latitude}, ${unidadAEditar.longitude}" else "") 
+                            }
+                            CampoTextoDireccionMapa(
+                                label = "Dirección",
+                                value = coordText,
+                                onValueChange = { coordText = it },
+                                onLocationSelected = { lat, lon ->
+                                    coordText = "$lat, $lon"
+                                }
+                            )
+
                             Spacer(Modifier.height(40.dp))
 
                             Button(
@@ -1130,6 +1159,14 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                     isLoading = true
                                     scope.launch {
                                         try {
+                                            var lat = 14.6349
+                                            var lon = -90.5069
+                                            if (coordText.contains(",")) {
+                                                val parts = coordText.split(",")
+                                                lat = parts[0].trim().toDoubleOrNull() ?: 14.6349
+                                                lon = parts[1].trim().toDoubleOrNull() ?: -90.5069
+                                            }
+
                                             val nuevaUnidad = Unidad(
                                                 numero = numero,
                                                 tipo = tipo,
@@ -1139,7 +1176,9 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                                 fechaRegistro = fechaRegistro,
                                                 color = colorU,
                                                 estado = estadoU,
-                                                fotoBase64 = fotoBase64
+                                                fotoBase64 = fotoBase64,
+                                                latitude = lat,
+                                                longitude = lon
                                             )
                                             val db = FirebaseFirestore.getInstance()
                                             if (unidadAEditar != null) {

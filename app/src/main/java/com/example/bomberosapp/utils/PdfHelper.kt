@@ -24,8 +24,10 @@ object PdfHelper {
 
     fun generarReportePdf(context: Context, emergency: Emergency, patients: List<PacienteData>) {
         val pdfDocument = PdfDocument()
-        // ... (resto del código de dibujo del PDF se mantiene igual)
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Tamaño A4
+        
+        // Ajustamos a tamaño Oficio (Guatemala/US Legal aproximado: 8.5" x 13")
+        // En puntos (1/72 inch): 612 x 936
+        val pageInfo = PdfDocument.PageInfo.Builder(612, 936, 1).create()
         val page = pdfDocument.startPage(pageInfo)
         val canvas: Canvas = page.canvas
         val paint = Paint()
@@ -37,23 +39,23 @@ object PdfHelper {
         titlePaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         titlePaint.textSize = 14f
         titlePaint.color = Color.RED
-        canvas.drawText("BENEMÉRITO CUERPO DE BOMBEROS VOLUNTARIOS DE GUATEMALA", 50f, y, titlePaint)
+        canvas.drawText("BENEMÉRITO CUERPO DE BOMBEROS VOLUNTARIOS DE GUATEMALA", 40f, y, titlePaint)
         
         y += 25f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         paint.textSize = 12f
         paint.color = Color.BLACK
-        canvas.drawText("REPORTE DE SERVICIO DE AMBULANCIA", 50f, y, paint)
+        canvas.drawText("REPORTE DE SERVICIO DE AMBULANCIA", 40f, y, paint)
         
         y += 20f
         paint.typeface = Typeface.DEFAULT
         paint.textSize = 10f
-        canvas.drawText("ID Reporte: ${emergency.id}", 50f, y, paint)
+        canvas.drawText("ID Reporte: ${emergency.id}", 40f, y, paint)
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        canvas.drawText("Fecha de Generación: ${sdf.format(Date())}", 350f, y, paint)
+        canvas.drawText("Fecha de Generación: ${sdf.format(Date())}", 380f, y, paint)
 
         y += 30f
-        canvas.drawLine(50f, y, 545f, y, paint)
+        canvas.drawLine(40f, y, 572f, y, paint)
         y += 20f
 
         // SECCIÓN 1

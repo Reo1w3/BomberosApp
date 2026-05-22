@@ -17,10 +17,12 @@ fun OsmMapView(
     modifier: Modifier = Modifier,
     center: GeoPoint = GeoPoint(14.6349, -90.5069), // Guatemala City default
     zoomLevel: Double = 15.0,
+    onLocationSelected: (GeoPoint) -> Unit = {},
     onMapReady: (MapView) -> Unit = {}
 ) {
     val context = LocalContext.current
     val mapView = remember { MapView(context) }
+    val marker = remember { Marker(mapView) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -36,11 +38,22 @@ fun OsmMapView(
                 controller.setZoom(zoomLevel)
                 controller.setCenter(center)
                 
-                val marker = Marker(this)
                 marker.position = center
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                marker.title = "Ubicación seleccionada"
+                marker.title = "Ubicación"
                 overlays.add(marker)
+
+                // Listener para capturar toque en el mapa
+                val mapEventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
+                    override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                        marker.position = p
+                        mapView.invalidate()
+                        onLocationSelected(p)
+                        return true
+                    }
+                    override fun longPressHelper(p: GeoPoint): Boolean = false
+                })
+                overlays.add(0, mapEventsOverlay)
                 
                 onMapReady(this)
             }

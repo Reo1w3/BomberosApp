@@ -31,9 +31,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
+import android.location.Geocoder
+import android.location.Location
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import org.osmdroid.util.GeoPoint
+import androidx.compose.ui.window.Dialog
+import android.content.Context
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +108,74 @@ fun CampoTextoMicrofono(
 }
 
 @Composable
+fun CampoTextoDireccionMapa(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onLocationSelected: (Double, Double) -> Unit,
+    onGpsClick: (() -> Unit)? = null
+) {
+    var showMapDialog by remember { mutableStateOf(false) }
+
+    if (showMapDialog) {
+        Dialog(onDismissRequest = { showMapDialog = false }) {
+            Card(
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "SELECCIONE UBICACIÓN",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 18.sp,
+                        color = RojoBomberos
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.weight(1f).border(1.dp, Color.LightGray)) {
+                        val context = LocalContext.current
+                        OsmMapView(
+                            onLocationSelected = { point ->
+                                val address = fetchAddress(context, point.latitude, point.longitude)
+                                onValueChange(address)
+                                onLocationSelected(point.latitude, point.longitude)
+                            }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { showMapDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos)
+                    ) {
+                        Text("CONFIRMAR UBICACIÓN", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    CampoTextoEmergencia(
+        label = label,
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = "Ingrese dirección o use el mapa",
+        trailingIcon = {
+            Row {
+                if (onGpsClick != null) {
+                    IconButton(onClick = onGpsClick) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "GPS Actual", tint = RojoBomberos)
+                    }
+                }
+                IconButton(onClick = { showMapDialog = true }) {
+                    Icon(Icons.Default.Map, contentDescription = "Mapa", tint = RojoBomberos)
+                }
+            }
+        }
+    )
+}
+
+@Composable
 fun CampoTextoGPS(
     label: String,
     value: String,
@@ -113,6 +186,7 @@ fun CampoTextoGPS(
         label = label,
         value = value,
         onValueChange = onValueChange,
+        placeholder = "Latitud, Longitud",
         trailingIcon = {
             Row {
                 IconButton(onClick = { 
@@ -120,11 +194,6 @@ fun CampoTextoGPS(
                     Toast.makeText(context, "Coordenadas capturadas con éxito", Toast.LENGTH_SHORT).show()
                 }) {
                     Icon(Icons.Default.MyLocation, contentDescription = "GPS", tint = RojoBomberos)
-                }
-                IconButton(onClick = { 
-                    Toast.makeText(context, "Abriendo visor de mapas...", Toast.LENGTH_SHORT).show()
-                }) {
-                    Icon(Icons.Default.Map, contentDescription = "Mapa", tint = RojoBomberos)
                 }
             }
         }
@@ -218,10 +287,47 @@ fun DropdownFieldSimple(
 }
 
 fun encodeImageToBase64(bitmap: Bitmap): String {
+    // Redimensionar para optimizar almacenamiento en Firestore (Límite 1MB por doc)
+    val maxWidth = 800
+    val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+    val finalWidth = if (bitmap.width > maxWidth) maxWidth else bitmap.width
+    val finalHeight = if (bitmap.width > maxWidth) (maxWidth / ratio).toInt() else bitmap.height
+    
+    val scaledBitmap = Bitmap.createScaledBitmap(bitmap, finalWidth, finalHeight, true)
     val outputStream = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+    // 50% de calidad es el balance ideal tras el redimensionamiento
+    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 50, outputStream)
     val byteArray = outputStream.toByteArray()
     return Base64.encodeToString(byteArray, Base64.DEFAULT)
+}
+
+fun fetchAddress(context: Context, latitude: Double, longitude: Double): String {
+    val geocoder = Geocoder(context, Locale.getDefault())
+    return try {
+        val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+        if (!addresses.isNullOrEmpty()) {
+            val address = addresses[0]
+            val street = address.thoroughfare ?: ""
+            val feature = address.featureName ?: ""
+            val subLocality = address.subLocality ?: ""
+            
+            // Priorizamos la calle, si no existe usamos el feature name (nombre del lugar)
+            val mainText = if (street.isNotBlank()) street else if (feature != "$latitude" && feature != "$longitude") feature else ""
+            
+            if (mainText.isNotBlank()) {
+                val fullAddr = listOf(mainText, subLocality).filter { it.isNotBlank() }.joinToString(", ")
+                "$fullAddr ($latitude, $longitude)"
+            } else {
+                // Si el geocoder no devuelve un nombre habitable, devolvemos solo coordenadas
+                "$latitude, $longitude"
+            }
+        } else {
+            "$latitude, $longitude"
+        }
+    } catch (e: Exception) {
+        // En caso de error (sin internet o falla de red), devolvemos coordenadas puras para no perder el dato
+        "$latitude, $longitude"
+    }
 }
 
 fun decodeBase64ToBitmap(base64: String): Bitmap? {

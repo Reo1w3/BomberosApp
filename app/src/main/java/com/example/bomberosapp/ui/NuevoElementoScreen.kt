@@ -31,12 +31,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import java.io.InputStream
+import org.osmdroid.util.GeoPoint
 
 @Composable
 fun NuevoElementoScreen(
@@ -78,6 +85,31 @@ fun NuevoElementoScreen(
     
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(context, "Permiso concedido", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun obtenerUbicacionGps() {
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val location: Location? = try {
+                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            } catch (e: SecurityException) { null }
+            
+            location?.let {
+                direccion = fetchAddress(context, it.latitude, it.longitude)
+                Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(context, "No se pudo obtener GPS. Asegúrese de tener el GPS activado.", Toast.LENGTH_SHORT).show()
+        } else {
+            locationPermissionLauncher.launch(permission)
+        }
+    }
 
     val tiposLicencia = listOf("TIPO A", "TIPO B", "TIPO C", "TIPO M")
     val turnos = listOf("GUARDIA A", "GUARDIA B", "GUARDIA C", "CAMBIO DE TURNO (8 HORAS)", "PERSONAL PERMANENTE")
@@ -239,10 +271,12 @@ fun NuevoElementoScreen(
                     onValueChange = { if (it.all { char -> char.isDigit() }) telefono = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
-                CampoTextoGPS(
+                CampoTextoDireccionMapa(
                     label = "Dirección",
                     value = direccion,
-                    onValueChange = { direccion = it }
+                    onValueChange = { direccion = it },
+                    onLocationSelected = { lat, lon -> direccion = "$lat, $lon" },
+                    onGpsClick = { obtenerUbicacionGps() }
                 )
             }
 

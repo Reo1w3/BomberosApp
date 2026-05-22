@@ -33,16 +33,20 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
-import com.example.bomberosapp.ui.components.CampoTextoEmergencia
-import com.example.bomberosapp.ui.components.DropdownFieldSimple
-import com.example.bomberosapp.ui.components.ExpandableSection
-import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
-import com.example.bomberosapp.ui.components.encodeImageToBase64
+import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
 import java.io.InputStream
+import org.osmdroid.util.GeoPoint
 
 @Composable
 fun EditarParamedicoScreen(
@@ -66,6 +70,32 @@ fun EditarParamedicoScreen(
     var showPassword by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(context, "Permiso concedido", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun obtenerUbicacionGps() {
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val location: Location? = try {
+                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            } catch (e: SecurityException) { null }
+            
+            location?.let {
+                direccion = fetchAddress(context, it.latitude, it.longitude)
+                Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(context, "No se pudo obtener GPS. Asegúrese de tener el GPS activado.", Toast.LENGTH_SHORT).show()
+        } else {
+            locationPermissionLauncher.launch(permission)
+        }
+    }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -146,7 +176,13 @@ fun EditarParamedicoScreen(
                 CampoTextoEmergencia("DPI / Identificación", numeroIdentificacion, { numeroIdentificacion = it })
                 CampoTextoEmergencia("Código de elemento", codigoElemento, { codigoElemento = it })
                 CampoTextoEmergencia("Teléfono", telefono, { telefono = it })
-                CampoTextoEmergencia("Dirección", direccion, { direccion = it })
+                CampoTextoDireccionMapa(
+                    label = "Dirección",
+                    value = direccion,
+                    onValueChange = { direccion = it },
+                    onLocationSelected = { lat, lon -> direccion = "$lat, $lon" },
+                    onGpsClick = { obtenerUbicacionGps() }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
