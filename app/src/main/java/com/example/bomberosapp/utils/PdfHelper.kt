@@ -121,8 +121,15 @@ object PdfHelper {
         drawSectionTitle(canvas, "6. PERSONAL y 7. CONTROL", y)
         y += 15f
         drawText(canvas, "Piloto: ${emergency.piloto}", 60f, y)
+        
+        val personalDestacadoConAlias = if (emergency.personalDestacado.isNotBlank()) {
+            "Paramédicos: ${emergency.personalDestacado}"
+        } else {
+            "Paramédicos: (Ninguno)"
+        }
         y += 15f
-        drawText(canvas, "Paramédicos: ${emergency.personalDestacado}", 60f, y)
+        drawText(canvas, personalDestacadoConAlias, 60f, y)
+
         y += 15f
         drawText(canvas, "Reporte por: ${emergency.reporteFormuladoPor}", 60f, y)
         drawText(canvas, "Hora Llegada Incidente: ${emergency.horaLlegada}", 300f, y)

@@ -109,6 +109,9 @@ fun DetalleParamedicoScreen(
 
                         CampoDetalle("NOMBRES", paramedico.nombres)
                         CampoDetalle("APELLIDOS", paramedico.apellidos)
+                        if (paramedico.alias.isNotBlank()) {
+                            CampoDetalle("ALIAS", paramedico.alias)
+                        }
                         CampoDetalle("NÚMERO DE IDENTIFICACIÓN", paramedico.numeroIdentificacion)
                         CampoDetalle("CÓDIGO DE ELEMENTO", paramedico.codigoElemento)
                         CampoDetalle("TELÉFONO", paramedico.telefono)
