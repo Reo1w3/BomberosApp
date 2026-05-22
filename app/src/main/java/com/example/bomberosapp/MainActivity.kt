@@ -1,6 +1,8 @@
 package com.example.bomberosapp
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -85,9 +87,29 @@ class MainActivity : ComponentActivity() {
             val pilotoViewModel: PilotoViewModel = viewModel()
             val paramedicoViewModel: ParamedicoViewModel = viewModel()
             
-            var currentScreen by remember { mutableStateOf("login") }
-            var currentUserCode by remember { mutableStateOf("") }
-            var currentUserRole by remember { mutableStateOf(UserRole.NONE) }
+            val loginUIState = loginViewModel.loginState
+            
+            // Recuperar estado inicial de SharedPreferences para evitar parpadeos
+            val savedUser = loginViewModel.getSavedUser()
+            val savedRoleName = sharedPrefs.getString("user_role", UserRole.NONE.name)
+            val savedRole = try { UserRole.valueOf(savedRoleName ?: UserRole.NONE.name) } catch(e: Exception) { UserRole.NONE }
+
+            var currentScreen by remember { 
+                mutableStateOf(if (savedRole != UserRole.NONE) {
+                    if (savedRole == UserRole.ADMIN) "admin_home" else "home"
+                } else "login") 
+            }
+            var currentUserCode by remember { mutableStateOf(savedUser) }
+            var currentUserRole by remember { mutableStateOf(savedRole) }
+
+            LaunchedEffect(loginUIState) {
+                if (loginUIState is LoginUIState.Success) {
+                    currentUserRole = loginUIState.role
+                    currentUserCode = loginViewModel.getSavedUser()
+                    currentScreen = if (loginUIState.role == UserRole.ADMIN) "admin_home" else "home"
+                }
+            }
+
             var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
             var selectedPiloto by remember { mutableStateOf<Piloto?>(null) }
             var selectedParamedico by remember { mutableStateOf<Paramedico?>(null) }
@@ -126,6 +148,8 @@ class MainActivity : ComponentActivity() {
                                     currentScreen = if (role == UserRole.ADMIN) "admin_home" else "home"
                                 }
                                 "home" -> HomeScreen(
+                                    isAdmin = currentUserRole == UserRole.ADMIN,
+                                    onSwitchToAdmin = { currentScreen = "admin_home" },
                                     onNewEmergency = {
                                         emergencyViewModel.resetState()
                                         currentScreen = "form"
@@ -137,7 +161,7 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "solicitar_apoyo"
                                     },
                                     onLogout = {
-                                        loginViewModel.resetState()
+                                        loginViewModel.logout()
                                         currentScreen = "login"
                                     }
                                 )
@@ -157,8 +181,9 @@ class MainActivity : ComponentActivity() {
                                         onList = { currentScreen = "admin_todos_controles" },
                                         onUnidades = { currentScreen = "admin_unidades" },
                                         onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
+                                        onSwitchToUser = { currentScreen = "home" },
                                         onLogout = {
-                                            loginViewModel.resetState()
+                                            loginViewModel.logout()
                                             currentScreen = "login"
                                         }
                                     )
@@ -378,7 +403,7 @@ class MainActivity : ComponentActivity() {
                                     userName = currentUserCode,
                                     userRole = currentUserRole,
                                     onLogout = {
-                                        loginViewModel.resetState()
+                                        loginViewModel.logout()
                                         currentScreen = "login"
                                     }
                                 )
@@ -402,6 +427,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String, UserRole) -> Unit) {
+    val context = LocalContext.current
     val savedUser = viewModel.getSavedUser()
     var user by remember { mutableStateOf(savedUser) }
     var pass by remember { mutableStateOf("") }
@@ -495,7 +521,13 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String, UserRole) ->
                         }
                     }
 
-                    TextButton(onClick = { }) {
+                    TextButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            val mensaje = "Solicito restablecimiento de mi contraseña para el usuario: $user"
+                            data = Uri.parse("https://wa.me/50250384571?text=${Uri.encode(mensaje)}")
+                        }
+                        context.startActivity(intent)
+                    }) {
                         Text("OLVIDE MI CONTRASEÑA AQUI", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
@@ -514,10 +546,30 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 }
 
 @Composable
-fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSolicitarApoyo: () -> Unit, onLogout: () -> Unit) {
+fun HomeScreen(
+    isAdmin: Boolean = false,
+    onSwitchToAdmin: () -> Unit = {},
+    onNewEmergency: () -> Unit,
+    onUltimosControles: () -> Unit,
+    onSolicitarApoyo: () -> Unit,
+    onLogout: () -> Unit
+) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
         Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (isAdmin) {
+                Button(
+                    onClick = onSwitchToAdmin,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.AdminPanelSettings, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("VISTA ADMINISTRADOR", fontWeight = FontWeight.Bold)
+                }
+            }
+            
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
             
             Card(
@@ -620,19 +672,27 @@ fun AdminHomeScreen(
     onList: () -> Unit, 
     onUnidades: () -> Unit, 
     onFuerzaActiva: () -> Unit, 
+    onSwitchToUser: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
         HeaderApp(onAction = onLogout)
         
-        Text(
-            "BIENVENIDO OFICIAL",
-            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-            textAlign = TextAlign.Center,
-            color = Color.White,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Black
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "BIENVENIDO OFICIAL",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
+            )
+            IconButton(onClick = onSwitchToUser) {
+                Icon(Icons.Default.Person, "Vista Usuario", tint = Color.White)
+            }
+        }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -1144,7 +1204,7 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                 value = coordText,
                                 onValueChange = { coordText = it },
                                 onLocationSelected = { lat, lon ->
-                                    coordText = "$lat, $lon"
+                                    // El componente ya maneja el onValueChange
                                 }
                             )
 

@@ -52,6 +52,9 @@ import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.util.GeoPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -64,6 +67,7 @@ fun NuevaEmergenciaScreen(
     val scrollState = rememberScrollState()
     val uiState = viewModel.emergencyState
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     var tempLatLng by remember { mutableStateOf(GeoPoint(14.6349, -90.5069)) }
 
@@ -141,16 +145,27 @@ fun NuevaEmergenciaScreen(
         val permission = Manifest.permission.ACCESS_FINE_LOCATION
         if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
             val location: Location? = try {
-                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (isGpsEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                } else if (isNetworkEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                } else null
             } catch (e: SecurityException) { null }
             
             location?.let {
-                val fullAddress = fetchAddress(context, it.latitude, it.longitude)
-                if (target == "emergencia") viewModel.direccionEmergencia = fullAddress
-                else viewModel.trasladoA = fullAddress
-                tempLatLng = GeoPoint(it.latitude, it.longitude)
-                Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+                scope.launch(Dispatchers.IO) {
+                    val fullAddress = fetchAddress(context, it.latitude, it.longitude)
+                    withContext(Dispatchers.Main) {
+                        if (target == "emergencia") viewModel.direccionEmergencia = fullAddress
+                        else viewModel.trasladoA = fullAddress
+                        tempLatLng = GeoPoint(it.latitude, it.longitude)
+                        Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+                    }
+                }
             } ?: Toast.makeText(context, "No se pudo obtener GPS. Verifique que el GPS esté activo.", Toast.LENGTH_SHORT).show()
         } else {
             locationPermissionLauncher.launch(permission)
@@ -217,8 +232,8 @@ fun NuevaEmergenciaScreen(
                     value = viewModel.direccionEmergencia, 
                     onValueChange = { viewModel.direccionEmergencia = it },
                     onLocationSelected = { lat, lon ->
-                        viewModel.direccionEmergencia = "$lat, $lon"
-                        tempLatLng = GeoPoint(lat, lon)
+                        // El componente ya actualiza viewModel.direccionEmergencia mediante onValueChange
+                        // tempLatLng se usa internamente si fuera necesario, pero el estado principal es la dirección
                     },
                     onGpsClick = { obtenerUbicacionGps("emergencia") }
                 )
@@ -349,8 +364,7 @@ fun NuevaEmergenciaScreen(
                         value = viewModel.trasladoA, 
                         onValueChange = { viewModel.trasladoA = it },
                         onLocationSelected = { lat, lon ->
-                            viewModel.trasladoA = "$lat, $lon"
-                            tempLatLng = GeoPoint(lat, lon)
+                            // Ya se maneja internamente
                         },
                         onGpsClick = { obtenerUbicacionGps("traslado") }
                     )

@@ -11,6 +11,7 @@ data class Personal(
     val codigoPersonal: Int,
     val nombres: String,
     val apellidos: String,
+    val alias: String? = null,
     val telefono: String?,
     val direccion: String?,
     @ColumnInfo(name = "fecha_nacimiento")

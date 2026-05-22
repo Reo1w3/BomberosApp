@@ -43,6 +43,9 @@ import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import java.io.InputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.util.GeoPoint
 
 @Composable
@@ -63,12 +66,15 @@ fun NuevoElementoScreen(
 ) {
     var nombres by remember { mutableStateOf("") }
     var apellidos by remember { mutableStateOf("") }
+    var alias by remember { mutableStateOf("") }
     var numeroIdentificacion by remember { mutableStateOf("") }
     var codigoElemento by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
     var fotoBase64 by remember { mutableStateOf("") }
+    var isCapturingGps by remember { mutableStateOf(false) }
+    var isProcessingImage by remember { mutableStateOf(false) }
 
     // Piloto Fields
     var tipoLicencia by remember { mutableStateOf("") }
@@ -85,6 +91,7 @@ fun NuevoElementoScreen(
     
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -100,11 +107,18 @@ fun NuevoElementoScreen(
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             val location: Location? = try {
                 locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            } catch (e: SecurityException) { null }
+            } catch (_: SecurityException) { null }
             
             location?.let {
-                direccion = fetchAddress(context, it.latitude, it.longitude)
-                Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+                scope.launch(Dispatchers.IO) {
+                    withContext(Dispatchers.Main) { isCapturingGps = true }
+                    val address = fetchAddress(context, it.latitude, it.longitude)
+                    withContext(Dispatchers.Main) {
+                        direccion = address
+                        isCapturingGps = false
+                        Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+                    }
+                }
             } ?: Toast.makeText(context, "No se pudo obtener GPS. Asegúrese de tener el GPS activado.", Toast.LENGTH_SHORT).show()
         } else {
             locationPermissionLauncher.launch(permission)
@@ -124,9 +138,20 @@ fun NuevoElementoScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(it)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            fotoBase64 = encodeImageToBase64(bitmap)
+            scope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) { isProcessingImage = true }
+                val inputStream: InputStream? = context.contentResolver.openInputStream(it)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                if (bitmap != null) {
+                    val base64 = encodeImageToBase64(bitmap)
+                    withContext(Dispatchers.Main) {
+                        fotoBase64 = base64
+                        isProcessingImage = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { isProcessingImage = false }
+                }
+            }
         }
     }
 
@@ -141,7 +166,11 @@ fun NuevoElementoScreen(
                      apellidos.isNotBlank() && 
                      numeroIdentificacion.isNotBlank() && 
                      codigoElemento.isNotBlank() && 
-                     contrasena.isNotBlank()
+                     telefono.isNotBlank() &&
+                     direccion.isNotBlank() &&
+                     contrasena.isNotBlank() &&
+                     !isProcessingImage &&
+                     !isCapturingGps
 
     Column(
         modifier = Modifier
@@ -197,7 +226,7 @@ fun NuevoElementoScreen(
                             .clickable { imagePickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (fotoBase64.isNotEmpty()) {
+                            if (fotoBase64.isNotEmpty() && !isProcessingImage) {
                             val bitmap = decodeBase64ToBitmap(fotoBase64)
                             bitmap?.let {
                                 Image(
@@ -207,6 +236,8 @@ fun NuevoElementoScreen(
                                     contentScale = ContentScale.Crop
                                 )
                             }
+                        } else if (isProcessingImage) {
+                            CircularProgressIndicator(color = RojoBomberos)
                         } else {
                             Icon(
                                 imageVector = Icons.Default.AddAPhoto, 
@@ -223,9 +254,14 @@ fun NuevoElementoScreen(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                        enabled = !isProcessingImage
                     ) {
-                        Icon(Icons.Default.PhotoLibrary, null, tint = Blanco, modifier = Modifier.size(18.dp))
+                        if (isProcessingImage) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Blanco, strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.PhotoLibrary, null, tint = Blanco, modifier = Modifier.size(18.dp))
+                        }
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", 
@@ -252,6 +288,11 @@ fun NuevoElementoScreen(
                     value = apellidos,
                     onValueChange = { apellidos = it }
                 )
+                CampoTextoMicrofono(
+                    label = "Alias (Opcional)",
+                    value = alias,
+                    onValueChange = { alias = it }
+                )
                 CampoTextoEmergencia(
                     label = "DPI / Identificación",
                     value = numeroIdentificacion,
@@ -273,9 +314,11 @@ fun NuevoElementoScreen(
                 )
                 CampoTextoDireccionMapa(
                     label = "Dirección",
-                    value = direccion,
+                    value = if (isCapturingGps) "Capturando ubicación..." else direccion,
                     onValueChange = { direccion = it },
-                    onLocationSelected = { lat, lon -> direccion = "$lat, $lon" },
+                    onLocationSelected = { lat, lon -> 
+                        // Ya se maneja internamente en onValueChange del componente
+                    },
                     onGpsClick = { obtenerUbicacionGps() }
                 )
             }
@@ -392,6 +435,7 @@ fun NuevoElementoScreen(
                     onClick = {
                         if (isFormValid) {
                             val extraFieldsMap = mutableMapOf<String, String>()
+                            extraFieldsMap["alias"] = alias
                             extraFieldsMap["turno"] = turno
                             if (tipo == "Piloto") {
                                 extraFieldsMap["tipoLicencia"] = tipoLicencia

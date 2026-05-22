@@ -4,6 +4,7 @@ data class Paramedico(
     val id: String = "",
     val nombres: String = "",
     val apellidos: String = "",
+    val alias: String = "",
     val numeroIdentificacion: String = "",
     val codigoElemento: String = "",
     val telefono: String = "",
