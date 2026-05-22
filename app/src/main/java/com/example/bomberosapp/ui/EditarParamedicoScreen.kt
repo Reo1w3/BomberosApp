@@ -11,10 +11,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,11 +29,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 import com.example.bomberosapp.ui.components.encodeImageToBase64
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.Blanco
 import java.io.InputStream
 
 @Composable
@@ -48,7 +57,10 @@ fun EditarParamedicoScreen(
     var certificacion by remember { mutableStateOf(paramedico.certificacion) }
     var experiencia by remember { mutableStateOf(paramedico.experiencia) }
     var turno by remember { mutableStateOf(paramedico.turno) }
+    var contrasena by remember { mutableStateOf(paramedico.contrasena) }
     var fotoBase64 by remember { mutableStateOf(paramedico.fotoBase64) }
+
+    var showPassword by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -63,8 +75,15 @@ fun EditarParamedicoScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "EDITAR ELEMENTO", onAction = onVolverClick)
+    fun generarContrasena() {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+        contrasena = (1..8)
+            .map { chars.random() }
+            .joinToString("")
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(Blanco)) {
+        HeaderApp(title = "EDITAR PARAMÉDICO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier
@@ -75,20 +94,21 @@ fun EditarParamedicoScreen(
             verticalArrangement = Arrangement.Top
         ) {
             Text(
-                text = "Editar datos del paramédico",
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFE30613)
+                text = "DATOS ACTUALES DEL PARAMÉDICO",
+                fontWeight = FontWeight.ExtraBold,
+                color = RojoBomberos,
+                fontSize = 18.sp
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(130.dp)
                     .align(Alignment.CenterHorizontally)
                     .clip(CircleShape)
-                    .background(Color.LightGray)
-                    .border(3.dp, Color(0xFFE30613), CircleShape)
+                    .background(Color.LightGray.copy(alpha = 0.3f))
+                    .border(3.dp, RojoBomberos, CircleShape)
                     .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -103,101 +123,78 @@ fun EditarParamedicoScreen(
                         )
                     }
                 } else {
-                    Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                    Icon(Icons.Default.Person, null, modifier = Modifier.size(65.dp), tint = Color.Gray)
                 }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.2f)),
+                        .background(Color.Black.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.padding(bottom = 8.dp).size(20.dp))
+                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.padding(bottom = 8.dp).size(24.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            OutlinedTextField(
-                value = nombres,
-                onValueChange = { nombres = it },
-                label = { Text("Nombres") },
-                modifier = Modifier.fillMaxWidth()
+            CampoEditar("Nombres", nombres) { nombres = it }
+            CampoEditar("Apellidos", apellidos) { apellidos = it }
+            CampoEditar("DPI / Identificación", numeroIdentificacion) { numeroIdentificacion = it }
+            CampoEditar("Código de elemento", codigoElemento) { codigoElemento = it }
+            CampoEditar("Teléfono", telefono) { telefono = it }
+            CampoEditar("Dirección", direccion) { direccion = it }
+            CampoEditar("Especialidad", especialidad) { especialidad = it }
+            CampoEditar("Certificación", certificacion) { certificacion = it }
+            CampoEditar("Años de experiencia", experiencia) { experiencia = it }
+            CampoEditar("Turno", turno) { turno = it }
+
+            // SECCIÓN: CONTRASEÑA
+            Text(
+                text = "SEGURIDAD DE ACCESO",
+                fontWeight = FontWeight.Bold,
+                color = RojoBomberos,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = contrasena,
+                    onValueChange = { contrasena = it },
+                    label = { Text("Contraseña de Acceso") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = RojoBomberos
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = RojoBomberos,
+                        unfocusedBorderColor = Color.Gray
+                    )
+                )
+                
+                Button(
+                    onClick = { generarContrasena() },
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(56.dp).padding(top = 8.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                }
+            }
 
-            OutlinedTextField(
-                value = apellidos,
-                onValueChange = { apellidos = it },
-                label = { Text("Apellidos") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = numeroIdentificacion,
-                onValueChange = { numeroIdentificacion = it },
-                label = { Text("Número de identificación") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = codigoElemento,
-                onValueChange = { codigoElemento = it },
-                label = { Text("Código de elemento") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = telefono,
-                onValueChange = { telefono = it },
-                label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = direccion,
-                onValueChange = { direccion = it },
-                label = { Text("Dirección") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = especialidad,
-                onValueChange = { especialidad = it },
-                label = { Text("Especialidad") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = certificacion,
-                onValueChange = { certificacion = it },
-                label = { Text("Certificación") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = experiencia,
-                onValueChange = { experiencia = it },
-                label = { Text("Años de experiencia") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = turno,
-                onValueChange = { turno = it },
-                label = { Text("Turno") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             Button(
                 onClick = {
@@ -212,17 +209,20 @@ fun EditarParamedicoScreen(
                         certificacion = certificacion,
                         experiencia = experiencia,
                         turno = turno,
+                        contrasena = contrasena,
                         fotoBase64 = fotoBase64
                     )
                     onGuardarClick(paramedicoActualizado)
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                shape = RoundedCornerShape(25.dp)
             ) {
                 Text(
                     text = "GUARDAR CAMBIOS",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    color = Blanco,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
         }

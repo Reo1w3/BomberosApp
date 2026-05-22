@@ -1,9 +1,7 @@
 package com.example.bomberosapp.ui
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -13,29 +11,34 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Piloto
 import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 import com.example.bomberosapp.ui.components.encodeImageToBase64
+import com.example.bomberosapp.ui.theme.RojoBomberos
+import com.example.bomberosapp.ui.theme.Blanco
 import java.io.InputStream
 
 @Composable
@@ -54,7 +57,10 @@ fun EditarPilotoScreen(
     var numeroLicencia by remember { mutableStateOf(piloto.numeroLicencia) }
     var fechaVencimiento by remember { mutableStateOf(piloto.fechaVencimiento) }
     var turno by remember { mutableStateOf(piloto.turno) }
+    var contrasena by remember { mutableStateOf(piloto.contrasena) }
     var fotoBase64 by remember { mutableStateOf(piloto.fotoBase64) }
+    
+    var showPassword by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -69,8 +75,15 @@ fun EditarPilotoScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        HeaderApp(title = "EDITAR ELEMENTO", onAction = onVolverClick)
+    fun generarContrasena() {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+        contrasena = (1..8)
+            .map { chars.random() }
+            .joinToString("")
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(Blanco)) {
+        HeaderApp(title = "EDITAR PILOTO", onAction = onVolverClick)
 
         Column(
             modifier = Modifier
@@ -81,20 +94,21 @@ fun EditarPilotoScreen(
             verticalArrangement = Arrangement.Top
         ) {
             Text(
-                text = "Editar datos del piloto",
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFE30613)
+                text = "DATOS ACTUALES DEL PILOTO",
+                fontWeight = FontWeight.ExtraBold,
+                color = RojoBomberos,
+                fontSize = 18.sp
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(130.dp)
                     .align(Alignment.CenterHorizontally)
                     .clip(CircleShape)
-                    .background(Color.LightGray)
-                    .border(3.dp, Color(0xFFE30613), CircleShape)
+                    .background(Color.LightGray.copy(alpha = 0.3f))
+                    .border(3.dp, RojoBomberos, CircleShape)
                     .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -109,23 +123,23 @@ fun EditarPilotoScreen(
                         )
                     }
                 } else {
-                    Icon(Icons.Default.Person, null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                    Icon(Icons.Default.Person, null, modifier = Modifier.size(65.dp), tint = Color.Gray)
                 }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.2f)),
+                        .background(Color.Black.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.padding(bottom = 8.dp).size(20.dp))
+                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.padding(bottom = 8.dp).size(24.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             CampoEditar("Nombres", nombres) { nombres = it }
             CampoEditar("Apellidos", apellidos) { apellidos = it }
-            CampoEditar("Número de identificación", numeroIdentificacion) { numeroIdentificacion = it }
+            CampoEditar("DPI / Identificación", numeroIdentificacion) { numeroIdentificacion = it }
             CampoEditar("Código de elemento", codigoElemento) { codigoElemento = it }
             CampoEditar("Teléfono", telefono) { telefono = it }
             CampoEditar("Dirección", direccion) { direccion = it }
@@ -134,7 +148,53 @@ fun EditarPilotoScreen(
             CampoEditar("Fecha de vencimiento", fechaVencimiento) { fechaVencimiento = it }
             CampoEditar("Turno", turno) { turno = it }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            // NUEVA SECCIÓN: CONTRASEÑA
+            Text(
+                text = "SEGURIDAD DE ACCESO",
+                fontWeight = FontWeight.Bold,
+                color = RojoBomberos,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = contrasena,
+                    onValueChange = { contrasena = it },
+                    label = { Text("Contraseña de Acceso") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = RojoBomberos
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = RojoBomberos,
+                        unfocusedBorderColor = Color.Gray
+                    )
+                )
+                
+                Button(
+                    onClick = { generarContrasena() },
+                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(56.dp).padding(top = 8.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
 
             Button(
                 onClick = {
@@ -149,18 +209,20 @@ fun EditarPilotoScreen(
                         numeroLicencia = numeroLicencia,
                         fechaVencimiento = fechaVencimiento,
                         turno = turno,
+                        contrasena = contrasena,
                         fotoBase64 = fotoBase64
                     )
-
                     onGuardarClick(pilotoActualizado)
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                shape = RoundedCornerShape(25.dp)
             ) {
                 Text(
                     text = "GUARDAR CAMBIOS",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    color = Blanco,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
         }
@@ -177,7 +239,12 @@ fun CampoEditar(
         value = valor,
         onValueChange = onValorChange,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = RojoBomberos,
+            unfocusedBorderColor = Color.Gray
+        )
     )
 
     Spacer(modifier = Modifier.height(12.dp))
