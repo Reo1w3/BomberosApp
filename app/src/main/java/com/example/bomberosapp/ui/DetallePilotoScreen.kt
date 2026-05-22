@@ -132,6 +132,9 @@ fun DetallePilotoScreen(
 
                             CampoDetalle("NOMBRES", piloto.nombres)
                             CampoDetalle("APELLIDOS", piloto.apellidos)
+                            if (piloto.alias.isNotBlank()) {
+                                CampoDetalle("ALIAS", piloto.alias)
+                            }
                             CampoDetalle("NÚMERO DE IDENTIFICACIÓN", piloto.numeroIdentificacion)
                             CampoDetalle("CÓDIGO DE ELEMENTO", piloto.codigoElemento)
                             CampoDetalle("TELÉFONO", piloto.telefono)

@@ -23,8 +23,13 @@ class LoginViewModel(
     }
 
     private fun checkSavedUser() {
-        prefs?.getString("saved_user", null)?.let {
-            // Se podría implementar un auto-login aquí si se guarda el token
+        prefs?.getString("saved_user", null)?.let { usuario ->
+            val roleName = prefs.getString("user_role", UserRole.NONE.name) ?: UserRole.NONE.name
+            val role = try { UserRole.valueOf(roleName) } catch (e: Exception) { UserRole.NONE }
+            
+            if (role != UserRole.NONE) {
+                loginState = LoginUIState.Success(role)
+            }
         }
     }
 
@@ -55,7 +60,9 @@ class LoginViewModel(
         }
     }
 
-    fun resetState() {
+    fun logout() {
+        // Borramos el rol para que no se auto-loguee en el próximo inicio
+        prefs?.edit()?.remove("user_role")?.apply()
         loginState = LoginUIState.Idle
     }
 }

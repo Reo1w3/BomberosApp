@@ -110,7 +110,8 @@ fun SignatureDialog(
                         Button(
                             onClick = {
                                 if (paths.isNotEmpty()) {
-                                    val bitmap = pathsToBitmap(paths, 800, 400)
+                                    // Optimizamos el tamaño de la firma (600x300 es suficiente para el PDF)
+                                    val bitmap = pathsToBitmap(paths, 600, 300)
                                     val base64 = bitmapToBase64(bitmap)
                                     onConfirm(base64)
                                 }

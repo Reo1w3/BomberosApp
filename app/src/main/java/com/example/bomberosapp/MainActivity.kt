@@ -1,10 +1,14 @@
 package com.example.bomberosapp
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -14,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -26,7 +31,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -55,6 +62,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import kotlinx.coroutines.tasks.await
+import java.io.InputStream
+import android.graphics.BitmapFactory
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -78,9 +87,29 @@ class MainActivity : ComponentActivity() {
             val pilotoViewModel: PilotoViewModel = viewModel()
             val paramedicoViewModel: ParamedicoViewModel = viewModel()
             
-            var currentScreen by remember { mutableStateOf("login") }
-            var currentUserCode by remember { mutableStateOf("") }
-            var currentUserRole by remember { mutableStateOf(UserRole.NONE) }
+            val loginUIState = loginViewModel.loginState
+            
+            // Recuperar estado inicial de SharedPreferences para evitar parpadeos
+            val savedUser = loginViewModel.getSavedUser()
+            val savedRoleName = sharedPrefs.getString("user_role", UserRole.NONE.name)
+            val savedRole = try { UserRole.valueOf(savedRoleName ?: UserRole.NONE.name) } catch(e: Exception) { UserRole.NONE }
+
+            var currentScreen by remember { 
+                mutableStateOf(if (savedRole != UserRole.NONE) {
+                    if (savedRole == UserRole.ADMIN) "admin_home" else "home"
+                } else "login") 
+            }
+            var currentUserCode by remember { mutableStateOf(savedUser) }
+            var currentUserRole by remember { mutableStateOf(savedRole) }
+
+            LaunchedEffect(loginUIState) {
+                if (loginUIState is LoginUIState.Success) {
+                    currentUserRole = loginUIState.role
+                    currentUserCode = loginViewModel.getSavedUser()
+                    currentScreen = if (loginUIState.role == UserRole.ADMIN) "admin_home" else "home"
+                }
+            }
+
             var selectedUnidad by remember { mutableStateOf<Unidad?>(null) }
             var selectedPiloto by remember { mutableStateOf<Piloto?>(null) }
             var selectedParamedico by remember { mutableStateOf<Paramedico?>(null) }
@@ -119,6 +148,8 @@ class MainActivity : ComponentActivity() {
                                     currentScreen = if (role == UserRole.ADMIN) "admin_home" else "home"
                                 }
                                 "home" -> HomeScreen(
+                                    isAdmin = currentUserRole == UserRole.ADMIN,
+                                    onSwitchToAdmin = { currentScreen = "admin_home" },
                                     onNewEmergency = {
                                         emergencyViewModel.resetState()
                                         currentScreen = "form"
@@ -130,7 +161,7 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "solicitar_apoyo"
                                     },
                                     onLogout = {
-                                        loginViewModel.resetState()
+                                        loginViewModel.logout()
                                         currentScreen = "login"
                                     }
                                 )
@@ -150,8 +181,9 @@ class MainActivity : ComponentActivity() {
                                         onList = { currentScreen = "admin_todos_controles" },
                                         onUnidades = { currentScreen = "admin_unidades" },
                                         onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
+                                        onSwitchToUser = { currentScreen = "home" },
                                         onLogout = {
-                                            loginViewModel.resetState()
+                                            loginViewModel.logout()
                                             currentScreen = "login"
                                         }
                                     )
@@ -218,7 +250,7 @@ class MainActivity : ComponentActivity() {
                                             onGuardarClick = { updated ->
                                                 pilotoViewModel.actualizarPiloto(updated) {
                                                     selectedPiloto = updated
-                                                    Toast.makeText(context, "DATOS ACTUALIZADOS CORRECTAMENTE", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "CAMBIOS GUARDADOS EXITOSAMENTE", Toast.LENGTH_SHORT).show()
                                                     currentScreen = "admin_detalle_piloto"
                                                 }
                                             }
@@ -233,7 +265,7 @@ class MainActivity : ComponentActivity() {
                                             onGuardarClick = { updated ->
                                                 paramedicoViewModel.actualizarParamedico(updated) {
                                                     selectedParamedico = updated
-                                                    Toast.makeText(context, "DATOS ACTUALIZADOS CORRECTAMENTE", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "CAMBIOS GUARDADOS EXITOSAMENTE", Toast.LENGTH_SHORT).show()
                                                     currentScreen = "admin_detalle_paramedico"
                                                 }
                                             }
@@ -257,12 +289,14 @@ class MainActivity : ComponentActivity() {
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
+                                                Toast.makeText(context, "Complete campos obligatorios", Toast.LENGTH_SHORT).show()
                                                 return@NuevoElementoScreen
                                             }
                                             val p = Piloto(
                                                 id = "",
                                                 nombres = n,
                                                 apellidos = a,
+                                                alias = extra["alias"] ?: "",
                                                 numeroIdentificacion = i,
                                                 codigoElemento = c,
                                                 telefono = t,
@@ -274,9 +308,14 @@ class MainActivity : ComponentActivity() {
                                                 fechaVencimiento = extra["fechaVencimiento"] ?: "",
                                                 turno = extra["turno"] ?: ""
                                             )
-                                            FirebaseFirestore.getInstance().collection("piloto").add(p).addOnSuccessListener {
-                                                currentScreen = "admin_fuerza_activa"
-                                            }
+                                            FirebaseFirestore.getInstance().collection("piloto").add(p)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "PILOTO REGISTRADO EXITOSAMENTE", Toast.LENGTH_SHORT).show()
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "ERROR AL GUARDAR: ${e.message}", Toast.LENGTH_LONG).show()
+                                                }
                                         }
                                     )
                                 }
@@ -286,12 +325,14 @@ class MainActivity : ComponentActivity() {
                                         onVolverClick = { currentScreen = "admin_seleccion_tipo" },
                                         onContinuarClick = { n, a, i, c, t, d, psw, foto, extra ->
                                             if (n.isBlank() || a.isBlank() || i.isBlank() || c.isBlank() || psw.isBlank()) {
+                                                Toast.makeText(context, "Complete campos obligatorios", Toast.LENGTH_SHORT).show()
                                                 return@NuevoElementoScreen
                                             }
                                             val p = Paramedico(
                                                 id = "",
                                                 nombres = n,
                                                 apellidos = a,
+                                                alias = extra["alias"] ?: "",
                                                 numeroIdentificacion = i,
                                                 codigoElemento = c,
                                                 telefono = t,
@@ -303,9 +344,14 @@ class MainActivity : ComponentActivity() {
                                                 experiencia = extra["experiencia"] ?: "",
                                                 turno = extra["turno"] ?: ""
                                             )
-                                            FirebaseFirestore.getInstance().collection("paramedico").add(p).addOnSuccessListener {
-                                                currentScreen = "admin_fuerza_activa"
-                                            }
+                                            FirebaseFirestore.getInstance().collection("paramedico").add(p)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(context, "PARAMÉDICO REGISTRADO EXITOSAMENTE", Toast.LENGTH_SHORT).show()
+                                                    currentScreen = "admin_fuerza_activa"
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(context, "ERROR AL GUARDAR: ${e.message}", Toast.LENGTH_LONG).show()
+                                                }
                                         }
                                     )
                                 }
@@ -359,7 +405,7 @@ class MainActivity : ComponentActivity() {
                                     userName = currentUserCode,
                                     userRole = currentUserRole,
                                     onLogout = {
-                                        loginViewModel.resetState()
+                                        loginViewModel.logout()
                                         currentScreen = "login"
                                     }
                                 )
@@ -383,6 +429,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String, UserRole) -> Unit) {
+    val context = LocalContext.current
     val savedUser = viewModel.getSavedUser()
     var user by remember { mutableStateOf(savedUser) }
     var pass by remember { mutableStateOf("") }
@@ -476,7 +523,13 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: (String, UserRole) ->
                         }
                     }
 
-                    TextButton(onClick = { }) {
+                    TextButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            val mensaje = "Solicito restablecimiento de mi contraseña para el usuario: $user"
+                            data = Uri.parse("https://wa.me/50250384571?text=${Uri.encode(mensaje)}")
+                        }
+                        context.startActivity(intent)
+                    }) {
                         Text("OLVIDE MI CONTRASEÑA AQUI", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
@@ -495,10 +548,30 @@ fun LabelWithIcon(text: String, icon: ImageVector) {
 }
 
 @Composable
-fun HomeScreen(onNewEmergency: () -> Unit, onUltimosControles: () -> Unit, onSolicitarApoyo: () -> Unit, onLogout: () -> Unit) {
+fun HomeScreen(
+    isAdmin: Boolean = false,
+    onSwitchToAdmin: () -> Unit = {},
+    onNewEmergency: () -> Unit,
+    onUltimosControles: () -> Unit,
+    onSolicitarApoyo: () -> Unit,
+    onLogout: () -> Unit
+) {
     Column(Modifier.fillMaxSize()) {
         HeaderApp(onAction = onLogout)
         Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (isAdmin) {
+                Button(
+                    onClick = onSwitchToAdmin,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.AdminPanelSettings, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("VISTA ADMINISTRADOR", fontWeight = FontWeight.Bold)
+                }
+            }
+            
             MainButton("NUEVA\nEMERGENCIA", Icons.Default.LocalShipping, onNewEmergency)
             
             Card(
@@ -601,19 +674,27 @@ fun AdminHomeScreen(
     onList: () -> Unit, 
     onUnidades: () -> Unit, 
     onFuerzaActiva: () -> Unit, 
+    onSwitchToUser: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
         HeaderApp(onAction = onLogout)
         
-        Text(
-            "BIENVENIDO OFICIAL",
-            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-            textAlign = TextAlign.Center,
-            color = Color.White,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Black
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "BIENVENIDO OFICIAL",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
+            )
+            IconButton(onClick = onSwitchToUser) {
+                Icon(Icons.Default.Person, "Vista Usuario", tint = Color.White)
+            }
+        }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -896,15 +977,28 @@ fun CardUnidadSimple(unidad: Unidad, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(45.dp)
-                    .background(RojoBomberos, RoundedCornerShape(10.dp)),
+                    .clip(CircleShape)
+                    .background(Color.LightGray.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.LocalShipping,
-                    contentDescription = null,
-                    tint = Blanco,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (unidad.fotoBase64.isNotEmpty()) {
+                    val bitmap = decodeBase64ToBitmap(unidad.fotoBase64)
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: Icon(Icons.Default.LocalShipping, null, tint = RojoBomberos)
+                } else {
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        contentDescription = null,
+                        tint = RojoBomberos,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
             Spacer(Modifier.width(16.dp))
             Column {
@@ -935,6 +1029,7 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
     var fechaRegistro by remember { mutableStateOf(unidadAEditar?.fechaRegistro ?: "") }
     var colorU by remember { mutableStateOf(unidadAEditar?.color ?: "") }
     var estadoU by remember { mutableStateOf(unidadAEditar?.estado ?: "") }
+    var fotoBase64 by remember { mutableStateOf(unidadAEditar?.fotoBase64 ?: "") }
     
     var isLoading by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -948,6 +1043,16 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
     val coloresList = listOf("ROJO Y BLANCO", "AMARILLO LIMON Y VERDE FLUOR", "ROJO Y AMARILLO FLUOR", "BLANCO Y AZUL", "AMARILLO Y NEGRO", "ROJO Y AMARILLO")
     val estadosList = listOf("EXCELENTE", "BUENO", "REGULAR", "MALO", "CRITICO(DEFECTUOSO)")
     val modelosList = (1989..2027).map { it.toString() }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(it)
+            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+            fotoBase64 = encodeImageToBase64(bitmap)
+        }
+    }
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -1014,6 +1119,43 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
+                            // SECCIÓN FOTO DE LA UNIDAD
+                            Text(
+                                text = "FOTO DE LA UNIDAD",
+                                fontWeight = FontWeight.Black,
+                                color = RojoBomberos,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(130.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.LightGray.copy(alpha = 0.2f))
+                                    .border(3.dp, RojoBomberos, CircleShape)
+                                    .clickable { imagePickerLauncher.launch("image/*") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (fotoBase64.isNotEmpty()) {
+                                    val bitmap = decodeBase64ToBitmap(fotoBase64)
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.AddAPhoto, null, tint = RojoBomberos, modifier = Modifier.size(40.dp))
+                                }
+                            }
+                            TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                                Text(if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", color = RojoBomberos)
+                            }
+                            
+                            Spacer(Modifier.height(16.dp))
+
                             FieldLabelAdmin("NUMERO DE UNIDAD")
                             FieldInputAdmin(
                                 value = numero, 
@@ -1054,6 +1196,20 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                             FieldLabelAdmin("ESTADO DE LA UNIDAD")
                             DropdownFieldAdmin("SELECCIONAR", estadosList, estadoU) { estadoU = it }
 
+                            Spacer(Modifier.height(12.dp))
+                            FieldLabelAdmin("UBICACIÓN ACTUAL (GPS)")
+                            var coordText by remember(unidadAEditar) { 
+                                mutableStateOf(if(unidadAEditar != null) "${unidadAEditar.latitude}, ${unidadAEditar.longitude}" else "") 
+                            }
+                            CampoTextoDireccionMapa(
+                                label = "Dirección",
+                                value = coordText,
+                                onValueChange = { coordText = it },
+                                onLocationSelected = { lat, lon ->
+                                    // El componente ya maneja el onValueChange
+                                }
+                            )
+
                             Spacer(Modifier.height(40.dp))
 
                             Button(
@@ -1065,6 +1221,14 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                     isLoading = true
                                     scope.launch {
                                         try {
+                                            var lat = 14.6349
+                                            var lon = -90.5069
+                                            if (coordText.contains(",")) {
+                                                val parts = coordText.split(",")
+                                                lat = parts[0].trim().toDoubleOrNull() ?: 14.6349
+                                                lon = parts[1].trim().toDoubleOrNull() ?: -90.5069
+                                            }
+
                                             val nuevaUnidad = Unidad(
                                                 numero = numero,
                                                 tipo = tipo,
@@ -1073,14 +1237,17 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                                 modelo = modelo,
                                                 fechaRegistro = fechaRegistro,
                                                 color = colorU,
-                                                estado = estadoU
+                                                estado = estadoU,
+                                                fotoBase64 = fotoBase64,
+                                                latitude = lat,
+                                                longitude = lon
                                             )
                                             val db = FirebaseFirestore.getInstance()
                                             if (unidadAEditar != null) {
                                                 db.collection("unidad").document(unidadAEditar.id)
                                                     .set(nuevaUnidad)
                                                     .await()
-                                                Toast.makeText(context, "DATOS ACTUALIZADOS CORRECTAMENTE", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "UNIDAD ACTUALIZADA", Toast.LENGTH_SHORT).show()
                                             } else {
                                                 db.collection("unidad")
                                                     .add(nuevaUnidad)
@@ -1195,36 +1362,97 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
-                            .padding(24.dp)
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
-                            // MAPA EN EL DETALLE
-                            Text(
-                                "UBICACIÓN EN TIEMPO REAL",
-                                color = RojoBomberos,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(250.dp)
-                                    .clip(RoundedCornerShape(15.dp))
-                                    .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp))
+                            // ENCABEZADO ESTILO CONCEPTO
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                OsmMapView(center = GeoPoint(unidad.latitude, unidad.longitude))
+                                Box(
+                                    modifier = Modifier
+                                        .size(70.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(RojoBomberos),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocalShipping,
+                                        null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(20.dp))
+                                Text(
+                                    "UNIDAD ${unidad.numero}",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black
+                                )
                             }
 
-                            Spacer(Modifier.height(20.dp))
+                            // MAPA DE UBICACIÓN EN TIEMPO REAL
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, Color.LightGray, RoundedCornerShape(10.dp))
+                                ) {
+                                    OsmMapView(
+                                        center = GeoPoint(unidad.latitude, unidad.longitude),
+                                        zoomLevel = 16.0
+                                    )
+                                }
+                                Text(
+                                    "UBICACIÓN TIEMPO REAL",
+                                    color = RojoBomberos,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
 
-                            DetalleItem("NÚMERO DE UNIDAD", unidad.numero)
+                            Spacer(Modifier.height(16.dp))
+
+                            // FOTO DE LA UNIDAD
+                            if (unidad.fotoBase64.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(Color.LightGray.copy(alpha = 0.3f))
+                                        .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val bitmap = decodeBase64ToBitmap(unidad.fotoBase64)
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(20.dp))
+                            }
+
                             DetalleItem("TIPO DE UNIDAD", unidad.tipo)
                             DetalleItem("NÚMERO DE PLACA", unidad.placa)
                             DetalleItem("MARCA", unidad.marca)
                             DetalleItem("MODELO", unidad.modelo)
-                            DetalleItem("FECHA DE REGISTRO", unidad.fechaRegistro)
-                            DetalleItem("COLOR", unidad.color)
                             DetalleItem("ESTADO DE LA UNIDAD", unidad.estado)
 
                             Spacer(Modifier.height(30.dp))

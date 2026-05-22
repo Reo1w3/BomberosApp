@@ -128,6 +128,7 @@ fun FuerzaActivaScreen(
                                 items(pilotos) { piloto ->
                                     CardElementoSimple(
                                         nombre = "${piloto.nombres} ${piloto.apellidos}",
+                                        alias = piloto.alias,
                                         codigo = piloto.codigoElemento,
                                         icon = Icons.Default.DirectionsCar,
                                         fotoBase64 = piloto.fotoBase64,
@@ -149,6 +150,7 @@ fun FuerzaActivaScreen(
                                 items(paramedicos) { paramedico ->
                                     CardElementoSimple(
                                         nombre = "${paramedico.nombres} ${paramedico.apellidos}",
+                                        alias = paramedico.alias,
                                         codigo = paramedico.codigoElemento,
                                         icon = Icons.Default.LocalHospital,
                                         fotoBase64 = paramedico.fotoBase64,
@@ -193,6 +195,7 @@ fun FuerzaActivaScreen(
 @Composable
 fun CardElementoSimple(
     nombre: String,
+    alias: String? = null,
     codigo: String,
     icon: ImageVector,
     fotoBase64: String = "",
@@ -256,6 +259,14 @@ fun CardElementoSimple(
                     color = Color.Black,
                     fontSize = 16.sp
                 )
+                if (!alias.isNullOrBlank()) {
+                    Text(
+                        text = "\"$alias\"",
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 Text(
                     text = "Cód: $codigo",
                     color = Color.Gray,

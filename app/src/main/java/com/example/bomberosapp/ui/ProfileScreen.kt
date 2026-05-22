@@ -54,6 +54,8 @@ fun ProfileScreen(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var fotoBase64 by remember { mutableStateOf("") }
     var firmaBase64 by remember { mutableStateOf("") }
+    var userAlias by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
     var showSignatureDialog by remember { mutableStateOf(false) }
     var isLoadingData by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -89,6 +91,10 @@ fun ProfileScreen(
                     val doc = snapshot.documents.first()
                     fotoBase64 = doc.getString("fotoBase64") ?: ""
                     firmaBase64 = doc.getString("firmaBase64") ?: ""
+                    userAlias = doc.getString("alias") ?: ""
+                    val nombres = doc.getString("nombres") ?: ""
+                    val apellidos = doc.getString("apellidos") ?: ""
+                    fullName = "$nombres $apellidos".trim()
                 }
             } catch (e: Exception) {
                 // Silently fail or handle error
@@ -268,11 +274,21 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = userName,
+                text = fullName.ifEmpty { userName },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.Black
             )
+
+            if (userAlias.isNotEmpty()) {
+                Text(
+                    text = "\"$userAlias\"",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
 
             Text(
                 text = userRole.name,

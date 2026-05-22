@@ -23,6 +23,7 @@ class ConfigRepository {
     /**
      * Obtiene el personal (pilotos o paramédicos) en formato "APELLIDO - CODIGO"
      * Busca los campos: apellidos/apellido y codigoPersonal/codigoElemento/numeroIdentificacion
+     * Si tiene alias, se incluye como (ALIAS)
      */
     suspend fun getPersonalCatalogo(coleccion: String): List<String> {
         return try {
@@ -38,13 +39,16 @@ class ConfigRepository {
                              data["codigoElemento"] ?: 
                              data["numeroIdentificacion"] ?: 
                              data["codigo"])?.toString()?.trim() ?: doc.id
+
+                val alias = data["alias"]?.toString()?.trim() ?: ""
+                val aliasSuffix = if (alias.isNotBlank()) " \"$alias\"" else ""
                 
                 if (apellido.isNotEmpty()) {
-                    "$apellido - $codigo"
+                    "$apellido - $codigo$aliasSuffix"
                 } else {
                     // Respaldo si no hay apellido: usar el nombre
                     val nombre = (data["nombres"] ?: data["nombre"])?.toString()?.trim() ?: ""
-                    if (nombre.isNotEmpty()) "$nombre - $codigo" else codigo.toString()
+                    if (nombre.isNotEmpty()) "$nombre - $codigo$aliasSuffix" else "$codigo$aliasSuffix"
                 }
             }
             Log.d("ConfigRepository", "ÉXITO: Cargados ${list.size} elementos de $coleccion con formato Apellido-Código")

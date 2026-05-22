@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.example.bomberosapp.ui.components.fetchAddress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,9 +40,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.PacienteData
+import com.example.bomberosapp.ui.components.CampoTextoDireccionMapa
 import com.example.bomberosapp.ui.components.CampoTextoEmergencia
 import com.example.bomberosapp.ui.components.DropdownFieldSimple
-import com.example.bomberosapp.ui.components.CampoTextoEmergencia
 import com.example.bomberosapp.ui.components.ExpandableSection
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoBomberos
@@ -51,6 +52,9 @@ import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.util.GeoPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -63,10 +67,9 @@ fun NuevaEmergenciaScreen(
     val scrollState = rememberScrollState()
     val uiState = viewModel.emergencyState
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
-    var showMapDialog by remember { mutableStateOf(false) }
     var tempLatLng by remember { mutableStateOf(GeoPoint(14.6349, -90.5069)) }
-    var mapTarget by remember { mutableStateOf("emergencia") }
 
     var showSignatureDialog by remember { mutableStateOf(false) }
     var signatureTarget by remember { mutableStateOf("") } 
@@ -139,19 +142,33 @@ fun NuevaEmergenciaScreen(
     }
 
     fun obtenerUbicacionGps(target: String) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
             val location: Location? = try {
-                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (isGpsEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                } else if (isNetworkEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                } else null
             } catch (e: SecurityException) { null }
             
             location?.let {
-                if (target == "emergencia") viewModel.direccionEmergencia = "${it.latitude}, ${it.longitude}"
-                else viewModel.trasladoA = "${it.latitude}, ${it.longitude}"
-                tempLatLng = GeoPoint(it.latitude, it.longitude)
-            } ?: Toast.makeText(context, "No se pudo obtener ubicación GPS", Toast.LENGTH_SHORT).show()
+                scope.launch(Dispatchers.IO) {
+                    val fullAddress = fetchAddress(context, it.latitude, it.longitude)
+                    withContext(Dispatchers.Main) {
+                        if (target == "emergencia") viewModel.direccionEmergencia = fullAddress
+                        else viewModel.trasladoA = fullAddress
+                        tempLatLng = GeoPoint(it.latitude, it.longitude)
+                        Toast.makeText(context, "Ubicación capturada", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } ?: Toast.makeText(context, "No se pudo obtener GPS. Verifique que el GPS esté activo.", Toast.LENGTH_SHORT).show()
         } else {
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            locationPermissionLauncher.launch(permission)
         }
     }
 
@@ -159,34 +176,6 @@ fun NuevaEmergenciaScreen(
         viewModel.loadConfig()
     }
 
-    if (showMapDialog) {
-        AlertDialog(
-            onDismissRequest = { showMapDialog = false },
-            title = { Text("Mueva el mapa para ubicar") },
-            text = {
-                Box(Modifier.fillMaxWidth().height(400.dp)) {
-                    OsmMapView(center = tempLatLng, onMapReady = { map ->
-                        map.addMapListener(object : MapListener {
-                            override fun onScroll(event: ScrollEvent?): Boolean { 
-                                tempLatLng = map.mapCenter as GeoPoint
-                                return true 
-                            }
-                            override fun onZoom(event: ZoomEvent?): Boolean = true
-                        })
-                    })
-                    Icon(Icons.Default.Add, null, Modifier.align(Alignment.Center).size(32.dp), Color.Red)
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (mapTarget == "emergencia") viewModel.direccionEmergencia = "${tempLatLng.latitude}, ${tempLatLng.longitude}"
-                    else viewModel.trasladoA = "${tempLatLng.latitude}, ${tempLatLng.longitude}"
-                    showMapDialog = false
-                }) { Text("SELECCIONAR UBICACIÓN") }
-            },
-            dismissButton = { TextButton(onClick = { showMapDialog = false }) { Text("CANCELAR") } }
-        )
-    }
 
     if (showSignatureDialog) {
         SignatureDialog(
@@ -238,16 +227,15 @@ fun NuevaEmergenciaScreen(
                 Text("Tipo de Servicio", fontWeight = FontWeight.Bold)
                 DropdownFieldSimple(options = viewModel.tiposServicioList, selectedOption = viewModel.tipoServicio, label = "Seleccione Servicio") { viewModel.tipoServicio = it }
                 
-                CampoTextoEmergencia(
+                CampoTextoDireccionMapa(
                     label = "Dirección de la Emergencia", 
                     value = viewModel.direccionEmergencia, 
                     onValueChange = { viewModel.direccionEmergencia = it },
-                    trailingIcon = {
-                        Row {
-                            IconButton(onClick = { obtenerUbicacionGps("emergencia") }) { Icon(Icons.Default.MyLocation, "GPS", tint = RojoBomberos) }
-                            IconButton(onClick = { mapTarget = "emergencia"; showMapDialog = true }) { Icon(Icons.Default.Map, "Mapa", tint = RojoBomberos) }
-                        }
-                    }
+                    onLocationSelected = { lat, lon ->
+                        // El componente ya actualiza viewModel.direccionEmergencia mediante onValueChange
+                        // tempLatLng se usa internamente si fuera necesario, pero el estado principal es la dirección
+                    },
+                    onGpsClick = { obtenerUbicacionGps("emergencia") }
                 )
             }
 
@@ -371,16 +359,14 @@ fun NuevaEmergenciaScreen(
                     Text("Hospital / Destino", fontWeight = FontWeight.Bold)
                     DropdownFieldSimple(options = viewModel.hospitalesList, selectedOption = viewModel.hospitalTraslado, label = "Seleccione Hospital") { viewModel.hospitalTraslado = it }
                     
-                    CampoTextoEmergencia(
+                    CampoTextoDireccionMapa(
                         label = "Ubicación Destino", 
                         value = viewModel.trasladoA, 
                         onValueChange = { viewModel.trasladoA = it },
-                        trailingIcon = {
-                            Row {
-                                IconButton(onClick = { obtenerUbicacionGps("traslado") }) { Icon(Icons.Default.MyLocation, "GPS", tint = RojoBomberos) }
-                                IconButton(onClick = { mapTarget = "traslado"; showMapDialog = true }) { Icon(Icons.Default.Map, "Mapa", tint = RojoBomberos) }
-                            }
-                        }
+                        onLocationSelected = { lat, lon ->
+                            // Ya se maneja internamente
+                        },
+                        onGpsClick = { obtenerUbicacionGps("traslado") }
                     )
                     
                     CampoTextoEmergencia(
