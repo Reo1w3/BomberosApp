@@ -29,11 +29,26 @@ class UserRepository {
                     .get().await()
             }
 
+            // Búsqueda exhaustiva si no se encontró con el primer tipo
+            if (result.isEmpty && codigoInt != null) {
+                result = db.collection("personal")
+                    .whereEqualTo("codigo_personal", userTrim)
+                    .whereEqualTo("numero_identificacion", passTrim)
+                    .get().await()
+            }
+
             if (!result.isEmpty) {
                 val doc = result.documents[0]
                 val idTipoPersonal = doc.getLong("id_tipo_personal")?.toInt() ?: 0
-                // For example, if id_tipo_personal == 1 is Admin
-                return if (idTipoPersonal == 1 || userTrim == "0" || userTrim == "123") UserRole.ADMIN else UserRole.PERSONAL
+                
+                // Verificación de Admin robusta: por rol en DB o códigos maestros
+                val isAdmin = idTipoPersonal == 1 || 
+                              userTrim == "0" || 
+                              userTrim == "0001" || 
+                              userTrim == "123" ||
+                              (codigoInt != null && (codigoInt == 0 || codigoInt == 1))
+
+                return if (isAdmin) UserRole.ADMIN else UserRole.PERSONAL
             }
 
             // 2. Check in 'piloto'

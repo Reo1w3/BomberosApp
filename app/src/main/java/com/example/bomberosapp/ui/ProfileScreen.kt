@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.ui.components.ExpandableSection
+import com.example.bomberosapp.ui.components.SignatureDialog
 import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 import com.example.bomberosapp.ui.components.encodeImageToBase64
 import com.example.bomberosapp.ui.theme.RojoBomberos
@@ -53,6 +54,7 @@ fun ProfileScreen(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var fotoBase64 by remember { mutableStateOf("") }
     var firmaBase64 by remember { mutableStateOf("") }
+    var showSignatureDialog by remember { mutableStateOf(false) }
     var isLoadingData by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -62,15 +64,27 @@ fun ProfileScreen(
         val collection = when (userRole) {
             UserRole.PILOTO -> "piloto"
             UserRole.PARAMEDICO -> "paramedico"
-            UserRole.PERSONAL -> "personal"
+            UserRole.PERSONAL, UserRole.ADMIN -> "personal"
             else -> ""
         }
         if (collection.isNotEmpty()) {
             try {
-                val snapshot = FirebaseFirestore.getInstance().collection(collection)
-                    .whereEqualTo("codigoElemento", userName)
-                    .get()
-                    .await()
+                val db = FirebaseFirestore.getInstance()
+                val snapshot = if (userRole == UserRole.ADMIN || userRole == UserRole.PERSONAL) {
+                    val codeInt = userName.toIntOrNull()
+                    val firstTry = if (codeInt != null) {
+                        db.collection(collection).whereEqualTo("codigo_personal", codeInt).get().await()
+                    } else null
+                    
+                    if (firstTry == null || firstTry.isEmpty) {
+                        db.collection(collection).whereEqualTo("codigo_personal", userName).get().await()
+                    } else {
+                        firstTry
+                    }
+                } else {
+                    db.collection(collection).whereEqualTo("codigoElemento", userName).get().await()
+                }
+
                 if (!snapshot.isEmpty) {
                     val doc = snapshot.documents.first()
                     fotoBase64 = doc.getString("fotoBase64") ?: ""
@@ -124,6 +138,53 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
+    if (showSignatureDialog) {
+        SignatureDialog(
+            onDismiss = { showSignatureDialog = false },
+            onConfirm = { base64 ->
+                scope.launch {
+                    try {
+                        val collection = when (userRole) {
+                            UserRole.PILOTO -> "piloto"
+                            UserRole.PARAMEDICO -> "paramedico"
+                            UserRole.PERSONAL, UserRole.ADMIN -> "personal"
+                            else -> ""
+                        }
+                        if (collection.isNotEmpty()) {
+                            val db = FirebaseFirestore.getInstance()
+                            val snapshot = if (userRole == UserRole.ADMIN || userRole == UserRole.PERSONAL) {
+                                val codeInt = userName.toIntOrNull()
+                                val firstTry = if (codeInt != null) {
+                                    db.collection(collection).whereEqualTo("codigo_personal", codeInt).get().await()
+                                } else null
+                                
+                                if (firstTry == null || firstTry.isEmpty) {
+                                    db.collection(collection).whereEqualTo("codigo_personal", userName).get().await()
+                                } else {
+                                    firstTry
+                                }
+                            } else {
+                                db.collection(collection).whereEqualTo("codigoElemento", userName).get().await()
+                            }
+
+                            if (!snapshot.isEmpty) {
+                                val docId = snapshot.documents.first().id
+                                db.collection(collection).document(docId)
+                                    .update("firmaBase64", base64)
+                                    .await()
+                                firmaBase64 = base64
+                                showSignatureDialog = false
+                                Toast.makeText(context, "Firma actualizada", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Error al guardar firma: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
     }
 
     if (showPasswordDialog) {
@@ -264,7 +325,7 @@ fun ProfileScreen(
                         .height(150.dp)
                         .background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp))
                         .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                        .clickable { /* TODO: Implement Signature Pad Dialog */ },
+                        .clickable { showSignatureDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (firmaBase64.isNotEmpty()) {
@@ -287,7 +348,7 @@ fun ProfileScreen(
                 
                 if (firmaBase64.isNotEmpty()) {
                     TextButton(
-                        onClick = { /* TODO: Implement Signature Pad Dialog */ },
+                        onClick = { showSignatureDialog = true },
                         modifier = Modifier.align(Alignment.End)
                     ) {
                         Text("CAMBIAR FIRMA", color = RojoBomberos, fontSize = 12.sp)
@@ -319,6 +380,114 @@ fun ProfileInfoItem(label: String, value: String) {
         Text(text = label, fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
         Text(text = value, fontSize = 18.sp, color = Color.Black, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+fun ChangeCodeDialog(
+    currentCode: String,
+    onDismiss: () -> Unit,
+    onSuccess: (String) -> Unit
+) {
+    var newCode by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cambiar Código Administrativo", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Código Actual: $currentCode", fontSize = 14.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = newCode,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) newCode = it },
+                    label = { Text("Nuevo Código") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    singleLine = true
+                )
+                if (errorMsg.isNotEmpty()) {
+                    Text(errorMsg, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (newCode.isEmpty()) {
+                        errorMsg = "El código no puede estar vacío"
+                        return@Button
+                    }
+                    if (newCode == currentCode) {
+                        errorMsg = "El nuevo código debe ser diferente"
+                        return@Button
+                    }
+                    isLoading = true
+                    scope.launch {
+                        try {
+                            val db = FirebaseFirestore.getInstance()
+                            
+                            // 1. Comprobación de que el usuario no se repita
+                            val newCodeInt = newCode.toIntOrNull()
+                            val checkPersonal = if (newCodeInt != null) {
+                                db.collection("personal").whereEqualTo("codigo_personal", newCodeInt).get().await()
+                            } else {
+                                db.collection("personal").whereEqualTo("codigo_personal", newCode).get().await()
+                            }
+                            
+                            val checkPiloto = db.collection("piloto").whereEqualTo("codigoElemento", newCode).get().await()
+                            val checkParamedico = db.collection("paramedico").whereEqualTo("codigoElemento", newCode).get().await()
+
+                            if (!checkPersonal.isEmpty || !checkPiloto.isEmpty || !checkParamedico.isEmpty) {
+                                errorMsg = "El código ya está en uso por otro elemento"
+                                isLoading = false
+                                return@launch
+                            }
+
+                            // 2. Buscar documento actual de admin para actualizar
+                            val currentCodeInt = currentCode.toIntOrNull()
+                            var snapshot = if (currentCodeInt != null) {
+                                db.collection("personal").whereEqualTo("codigo_personal", currentCodeInt).get().await()
+                            } else {
+                                db.collection("personal").whereEqualTo("codigo_personal", currentCode).get().await()
+                            }
+                            
+                            // Si no se encuentra como Int, intentar como String (o viceversa)
+                            if (snapshot.isEmpty && currentCodeInt != null) {
+                                snapshot = db.collection("personal").whereEqualTo("codigo_personal", currentCode).get().await()
+                            }
+
+                            if (!snapshot.isEmpty) {
+                                val docId = snapshot.documents.first().id
+                                // Intentar actualizar respetando el tipo del nuevo código (preferir Int si es posible)
+                                val finalNewCode = newCodeInt ?: newCode
+                                db.collection("personal").document(docId)
+                                    .update("codigo_personal", finalNewCode)
+                                    .await()
+                                onSuccess(newCode)
+                            } else {
+                                errorMsg = "No se encontró el registro administrativo actual"
+                            }
+                        } catch (e: Exception) {
+                            errorMsg = "Error: ${e.message}"
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos)
+            ) {
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                else Text("ACTUALIZAR")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR") }
+        }
+    )
 }
 
 @Composable
@@ -384,20 +553,33 @@ fun ChangePasswordDialog(
                             val collection = when (userRole) {
                                 UserRole.PILOTO -> "piloto"
                                 UserRole.PARAMEDICO -> "paramedico"
-                                UserRole.PERSONAL -> "personal"
+                                UserRole.PERSONAL, UserRole.ADMIN -> "personal"
                                 else -> ""
                             }
                             if (collection.isNotEmpty()) {
                                 val db = FirebaseFirestore.getInstance()
-                                val snapshot = db.collection(collection)
-                                    .whereEqualTo("codigoElemento", userName)
-                                    .get()
-                                    .await()
+                                
+                                val snapshot = if (userRole == UserRole.ADMIN || userRole == UserRole.PERSONAL) {
+                                    val codeInt = userName.toIntOrNull()
+                                    val firstTry = if (codeInt != null) {
+                                        db.collection(collection).whereEqualTo("codigo_personal", codeInt).get().await()
+                                    } else null
+                                    
+                                    if (firstTry == null || firstTry.isEmpty) {
+                                        db.collection(collection).whereEqualTo("codigo_personal", userName).get().await()
+                                    } else {
+                                        firstTry
+                                    }
+                                } else {
+                                    db.collection(collection).whereEqualTo("codigoElemento", userName).get().await()
+                                }
                                 
                                 if (!snapshot.isEmpty) {
                                     val docId = snapshot.documents.first().id
+                                    val passwordField = if (userRole == UserRole.ADMIN || userRole == UserRole.PERSONAL) "numero_identificacion" else "contrasena"
+                                    
                                     db.collection(collection).document(docId)
-                                        .update("contrasena", newPassword)
+                                        .update(passwordField, newPassword)
                                         .await()
                                     onSuccess()
                                 } else {

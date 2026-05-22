@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.util.Base64
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import java.io.ByteArrayOutputStream
@@ -29,37 +31,50 @@ fun SignatureDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var path by remember { mutableStateOf(Path()) }
     val paths = remember { mutableStateListOf<Path>() }
+    var currentPath by remember { mutableStateOf<Path?>(null) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(400.dp),
-            shape = RoundedCornerShape(16.dp)
+                .height(450.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Dibuje su firma", style = MaterialTheme.typography.titleMedium)
+                Text("Dibuje su firma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
                         .background(Color.White)
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragStart = { offset ->
-                                    path = Path().apply { moveTo(offset.x, offset.y) }
-                                    paths.add(path)
+                                    val newPath = Path().apply { moveTo(offset.x, offset.y) }
+                                    paths.add(newPath)
+                                    currentPath = newPath
                                 },
-                                onDrag = { change, dragAmount ->
-                                    path.lineTo(change.position.x, change.position.y)
-                                    // Hack to force recomposition
-                                    val lastPath = paths.last()
-                                    paths.removeAt(paths.size - 1)
-                                    paths.add(lastPath)
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    currentPath?.let { path ->
+                                        path.lineTo(change.position.x, change.position.y)
+                                        // Forzar recomposición reemplazando el último elemento
+                                        val lastIndex = paths.size - 1
+                                        if (lastIndex >= 0) {
+                                            // Creamos una nueva instancia de Path con el contenido actual
+                                            val newPathInstance = Path().apply { addPath(path) }
+                                            paths[lastIndex] = newPathInstance
+                                            currentPath = newPathInstance
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    currentPath = null
                                 }
                             )
                         }
@@ -82,20 +97,28 @@ fun SignatureDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar")
+                        Text("CANCELAR", color = Color.Gray)
                     }
-                    TextButton(onClick = { paths.clear() }) {
-                        Text("Limpiar")
-                    }
-                    Button(onClick = {
-                        val bitmap = pathsToBitmap(paths, 800, 400)
-                        val base64 = bitmapToBase64(bitmap)
-                        onConfirm(base64)
-                    }) {
-                        Text("Confirmar")
+                    Row {
+                        TextButton(onClick = { paths.clear() }) {
+                            Text("LIMPIAR", color = Color.Red)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (paths.isNotEmpty()) {
+                                    val bitmap = pathsToBitmap(paths, 800, 400)
+                                    val base64 = bitmapToBase64(bitmap)
+                                    onConfirm(base64)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                        ) {
+                            Text("CONFIRMAR")
+                        }
                     }
                 }
             }

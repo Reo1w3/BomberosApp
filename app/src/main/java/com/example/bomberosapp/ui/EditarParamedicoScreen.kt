@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
+import com.example.bomberosapp.ui.components.CampoTextoEmergencia
+import com.example.bomberosapp.ui.components.DropdownFieldSimple
+import com.example.bomberosapp.ui.components.ExpandableSection
 import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
 import com.example.bomberosapp.ui.components.encodeImageToBase64
 import com.example.bomberosapp.ui.theme.RojoBomberos
@@ -137,60 +140,67 @@ fun EditarParamedicoScreen(
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            CampoEditar("Nombres", nombres) { nombres = it }
-            CampoEditar("Apellidos", apellidos) { apellidos = it }
-            CampoEditar("DPI / Identificación", numeroIdentificacion) { numeroIdentificacion = it }
-            CampoEditar("Código de elemento", codigoElemento) { codigoElemento = it }
-            CampoEditar("Teléfono", telefono) { telefono = it }
-            CampoEditar("Dirección", direccion) { direccion = it }
-            CampoEditar("Especialidad", especialidad) { especialidad = it }
-            CampoEditar("Certificación", certificacion) { certificacion = it }
-            CampoEditar("Años de experiencia", experiencia) { experiencia = it }
-            CampoEditar("Turno", turno) { turno = it }
+            ExpandableSection(title = "INFORMACIÓN PERSONAL") {
+                CampoTextoEmergencia("Nombres", nombres, { nombres = it })
+                CampoTextoEmergencia("Apellidos", apellidos, { apellidos = it })
+                CampoTextoEmergencia("DPI / Identificación", numeroIdentificacion, { numeroIdentificacion = it })
+                CampoTextoEmergencia("Código de elemento", codigoElemento, { codigoElemento = it })
+                CampoTextoEmergencia("Teléfono", telefono, { telefono = it })
+                CampoTextoEmergencia("Dirección", direccion, { direccion = it })
+            }
 
-            // SECCIÓN: CONTRASEÑA
-            Text(
-                text = "SEGURIDAD DE ACCESO",
-                fontWeight = FontWeight.Bold,
-                color = RojoBomberos,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-            )
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = contrasena,
-                    onValueChange = { contrasena = it },
-                    label = { Text("Contraseña de Acceso") },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showPassword = !showPassword }) {
-                            Icon(
-                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null,
-                                tint = RojoBomberos
-                            )
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = RojoBomberos,
-                        unfocusedBorderColor = Color.Gray
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ExpandableSection(title = "PERFIL PROFESIONAL") {
+                CampoTextoEmergencia("Especialidad", especialidad, { especialidad = it })
+                CampoTextoEmergencia("Certificación", certificacion, { certificacion = it })
+                CampoTextoEmergencia("Años de experiencia", experiencia, { experiencia = it })
+                DropdownFieldSimple(
+                    options = listOf("Mañana", "Tarde", "Noche", "24 Horas"),
+                    selectedOption = turno,
+                    label = "Turno",
+                    onOptionSelected = { turno = it }
                 )
-                
-                Button(
-                    onClick = { generarContrasena() },
-                    colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.height(56.dp).padding(top = 8.dp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ExpandableSection(title = "SEGURIDAD DE ACCESO") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                    OutlinedTextField(
+                        value = contrasena,
+                        onValueChange = { contrasena = it },
+                        label = { Text("Contraseña de Acceso") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = RojoBomberos
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RojoBomberos,
+                            unfocusedBorderColor = Color.Gray
+                        )
+                    )
+                    
+                    Button(
+                        onClick = { generarContrasena() },
+                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(56.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
 
