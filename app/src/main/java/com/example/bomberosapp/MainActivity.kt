@@ -58,6 +58,7 @@ import com.example.bomberosapp.ui.theme.RojoClaro
 import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import org.osmdroid.util.GeoPoint
 import kotlinx.coroutines.tasks.await
 import java.io.InputStream
 import android.graphics.BitmapFactory
@@ -1260,20 +1261,80 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
-                            .padding(24.dp),
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
-                            // FOTO EN EL DETALLE
-                            Box(
-                                modifier = Modifier
-                                    .size(150.dp)
-                                    .clip(RoundedCornerShape(15.dp))
-                                    .background(Color.LightGray.copy(alpha = 0.3f))
-                                    .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
-                                contentAlignment = Alignment.Center
+                            // ENCABEZADO ESTILO CONCEPTO
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                if (unidad.fotoBase64.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(70.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(RojoBomberos),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocalShipping,
+                                        null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(20.dp))
+                                Text(
+                                    "UNIDAD ${unidad.numero}",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black
+                                )
+                            }
+
+                            // MAPA DE UBICACIÓN EN TIEMPO REAL
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, Color.LightGray, RoundedCornerShape(10.dp))
+                                ) {
+                                    OsmMapView(
+                                        center = GeoPoint(unidad.latitude, unidad.longitude),
+                                        zoomLevel = 16.0
+                                    )
+                                }
+                                Text(
+                                    "UBICACIÓN TIEMPO REAL",
+                                    color = RojoBomberos,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            // FOTO DE LA UNIDAD
+                            if (unidad.fotoBase64.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(Color.LightGray.copy(alpha = 0.3f))
+                                        .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     val bitmap = decodeBase64ToBitmap(unidad.fotoBase64)
                                     bitmap?.let {
                                         Image(
@@ -1283,20 +1344,14 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
                                             contentScale = ContentScale.Crop
                                         )
                                     }
-                                } else {
-                                    Icon(Icons.Default.LocalShipping, null, tint = RojoBomberos, modifier = Modifier.size(60.dp))
                                 }
+                                Spacer(Modifier.height(20.dp))
                             }
 
-                            Spacer(Modifier.height(20.dp))
-
-                            DetalleItem("NÚMERO DE UNIDAD", unidad.numero)
                             DetalleItem("TIPO DE UNIDAD", unidad.tipo)
                             DetalleItem("NÚMERO DE PLACA", unidad.placa)
                             DetalleItem("MARCA", unidad.marca)
                             DetalleItem("MODELO", unidad.modelo)
-                            DetalleItem("FECHA DE REGISTRO", unidad.fechaRegistro)
-                            DetalleItem("COLOR", unidad.color)
                             DetalleItem("ESTADO DE LA UNIDAD", unidad.estado)
 
                             Spacer(Modifier.height(30.dp))
