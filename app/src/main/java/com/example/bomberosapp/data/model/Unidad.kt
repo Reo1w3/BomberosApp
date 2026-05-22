@@ -12,5 +12,6 @@ data class Unidad(
     val modelo: String = "",
     val fechaRegistro: String = "",
     val color: String = "",
-    val estado: String = ""
+    val estado: String = "",
+    val fotoBase64: String = ""
 )

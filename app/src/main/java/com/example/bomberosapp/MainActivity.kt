@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -14,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -24,8 +27,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -45,6 +51,7 @@ import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.ui.*
+import com.example.bomberosapp.ui.components.*
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
 import com.example.bomberosapp.ui.theme.RojoClaro
@@ -52,6 +59,8 @@ import com.example.bomberosapp.ui.NuevaEmergenciaScreen as NuevaEmergenciaUI
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.InputStream
+import android.graphics.BitmapFactory
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -890,15 +899,28 @@ fun CardUnidadSimple(unidad: Unidad, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(45.dp)
-                    .background(RojoBomberos, RoundedCornerShape(10.dp)),
+                    .clip(CircleShape)
+                    .background(Color.LightGray.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.LocalShipping,
-                    contentDescription = null,
-                    tint = Blanco,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (unidad.fotoBase64.isNotEmpty()) {
+                    val bitmap = decodeBase64ToBitmap(unidad.fotoBase64)
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: Icon(Icons.Default.LocalShipping, null, tint = RojoBomberos)
+                } else {
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        contentDescription = null,
+                        tint = RojoBomberos,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
             Spacer(Modifier.width(16.dp))
             Column {
@@ -929,6 +951,7 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
     var fechaRegistro by remember { mutableStateOf(unidadAEditar?.fechaRegistro ?: "") }
     var colorU by remember { mutableStateOf(unidadAEditar?.color ?: "") }
     var estadoU by remember { mutableStateOf(unidadAEditar?.estado ?: "") }
+    var fotoBase64 by remember { mutableStateOf(unidadAEditar?.fotoBase64 ?: "") }
     
     var isLoading by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -941,6 +964,17 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
     val marcasList = listOf("ROSENBAUER", "MERCEDES-BENZ", "VOLVO", "FREIGHTLINER", "ISUZU", "HINO", "FORD", "CHEVROLET", "RAM", "TOYOTA")
     val coloresList = listOf("ROJO Y BLANCO", "AMARILLO LIMON Y VERDE FLUOR", "ROJO Y AMARILLO FLUOR", "BLANCO Y AZUL", "AMARILLO Y NEGRO", "ROJO Y AMARILLO")
     val estadosList = listOf("EXCELENTE", "BUENO", "REGULAR", "MALO", "CRITICO(DEFECTUOSO)")
+    val modelosList = (1989..2027).map { it.toString() }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(it)
+            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+            fotoBase64 = encodeImageToBase64(bitmap)
+        }
+    }
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -1007,8 +1041,49 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
+                            // SECCIÓN FOTO DE LA UNIDAD
+                            Text(
+                                text = "FOTO DE LA UNIDAD",
+                                fontWeight = FontWeight.Black,
+                                color = RojoBomberos,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(130.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.LightGray.copy(alpha = 0.2f))
+                                    .border(3.dp, RojoBomberos, CircleShape)
+                                    .clickable { imagePickerLauncher.launch("image/*") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (fotoBase64.isNotEmpty()) {
+                                    val bitmap = decodeBase64ToBitmap(fotoBase64)
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.AddAPhoto, null, tint = RojoBomberos, modifier = Modifier.size(40.dp))
+                                }
+                            }
+                            TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                                Text(if (fotoBase64.isEmpty()) "SELECCIONAR FOTO" else "CAMBIAR FOTO", color = RojoBomberos)
+                            }
+                            
+                            Spacer(Modifier.height(16.dp))
+
                             FieldLabelAdmin("NUMERO DE UNIDAD")
-                            FieldInputAdmin(numero, "ESCRIBIR", KeyboardOptions(keyboardType = KeyboardType.Number)) { numero = it }
+                            FieldInputAdmin(
+                                value = numero, 
+                                placeholder = "INGRESE NUMERO DE UNIDAD", 
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            ) { numero = it }
 
                             Spacer(Modifier.height(12.dp))
                             FieldLabelAdmin("TIPO DE UNIDAD")
@@ -1016,7 +1091,10 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
 
                             Spacer(Modifier.height(12.dp))
                             FieldLabelAdmin("NUMERO DE PLACA")
-                            FieldInputAdmin(placa, "ESCRIBIR") { placa = it }
+                            FieldInputAdmin(
+                                value = placa, 
+                                placeholder = "INGRESE PLACA"
+                            ) { placa = it }
 
                             Spacer(Modifier.height(12.dp))
                             FieldLabelAdmin("MARCA")
@@ -1024,7 +1102,7 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
 
                             Spacer(Modifier.height(12.dp))
                             FieldLabelAdmin("MODELO")
-                            FieldInputAdmin(modelo, "ESCRIBIR", KeyboardOptions(keyboardType = KeyboardType.Number)) { modelo = it }
+                            DropdownFieldAdmin("SELECCIONAR", modelosList, modelo) { modelo = it }
 
                             Spacer(Modifier.height(12.dp))
                             FieldLabelAdmin("FECHA DE REGISTRO")
@@ -1059,7 +1137,8 @@ fun AgregarUnidadScreen(unidadAEditar: Unidad? = null, onBack: () -> Unit, onSuc
                                                 modelo = modelo,
                                                 fechaRegistro = fechaRegistro,
                                                 color = colorU,
-                                                estado = estadoU
+                                                estado = estadoU,
+                                                fotoBase64 = fotoBase64
                                             )
                                             val db = FirebaseFirestore.getInstance()
                                             if (unidadAEditar != null) {
@@ -1181,9 +1260,36 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
-                            .padding(24.dp)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         item {
+                            // FOTO EN EL DETALLE
+                            Box(
+                                modifier = Modifier
+                                    .size(150.dp)
+                                    .clip(RoundedCornerShape(15.dp))
+                                    .background(Color.LightGray.copy(alpha = 0.3f))
+                                    .border(2.dp, RojoBomberos, RoundedCornerShape(15.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (unidad.fotoBase64.isNotEmpty()) {
+                                    val bitmap = decodeBase64ToBitmap(unidad.fotoBase64)
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.LocalShipping, null, tint = RojoBomberos, modifier = Modifier.size(60.dp))
+                                }
+                            }
+
+                            Spacer(Modifier.height(20.dp))
+
                             DetalleItem("NÚMERO DE UNIDAD", unidad.numero)
                             DetalleItem("TIPO DE UNIDAD", unidad.tipo)
                             DetalleItem("NÚMERO DE PLACA", unidad.placa)
@@ -1242,7 +1348,7 @@ fun DetalleUnidadScreen(unidad: Unidad, onBack: () -> Unit, onEdit: () -> Unit, 
 
 @Composable
 fun DetalleItem(label: String, value: String) {
-    Column(Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(text = label, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Gray)
         Text(text = value.ifEmpty { "N/A" }, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
         HorizontalDivider(modifier = Modifier.padding(top = 4.dp), thickness = 1.dp, color = Color.LightGray)
