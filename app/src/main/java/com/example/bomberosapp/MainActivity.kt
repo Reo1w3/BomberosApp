@@ -43,6 +43,7 @@ import com.example.bomberosapp.data.model.Unidad
 import com.example.bomberosapp.data.model.Piloto
 import com.example.bomberosapp.data.model.Paramedico
 import com.example.bomberosapp.data.model.UserRole
+import com.example.bomberosapp.data.model.Emergency
 import com.example.bomberosapp.ui.*
 import com.example.bomberosapp.ui.theme.RojoBomberos
 import com.example.bomberosapp.ui.theme.Blanco
@@ -136,15 +137,21 @@ class MainActivity : ComponentActivity() {
                                 "solicitar_apoyo" -> SolicitarApoyoScreen(
                                     onVolverClick = { currentScreen = "home" }
                                 )
-                                "admin_home" -> AdminHomeScreen(
-                                    onList = { currentScreen = "admin_todos_controles" },
-                                    onUnidades = { currentScreen = "admin_unidades" },
-                                    onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
-                                    onLogout = {
-                                        loginViewModel.resetState()
-                                        currentScreen = "login"
+                                "admin_home" -> {
+                                    LaunchedEffect(Unit) {
+                                        adminViewModel.startObserving()
                                     }
-                                )
+                                    AdminHomeScreen(
+                                        emergencies = adminViewModel.emergencies.take(3),
+                                        onList = { currentScreen = "admin_todos_controles" },
+                                        onUnidades = { currentScreen = "admin_unidades" },
+                                        onFuerzaActiva = { currentScreen = "admin_fuerza_activa" },
+                                        onLogout = {
+                                            loginViewModel.resetState()
+                                            currentScreen = "login"
+                                        }
+                                    )
+                                }
                                 "admin_todos_controles" -> UltimosControlesScreen(
                                     viewModel = adminViewModel,
                                     title = "HISTORIAL GENERAL",
@@ -583,7 +590,13 @@ fun BottomNavBar(onHome: () -> Unit, onProfile: () -> Unit) {
 }
 
 @Composable
-fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onFuerzaActiva: () -> Unit, onLogout: () -> Unit) {
+fun AdminHomeScreen(
+    emergencies: List<Emergency>,
+    onList: () -> Unit, 
+    onUnidades: () -> Unit, 
+    onFuerzaActiva: () -> Unit, 
+    onLogout: () -> Unit
+) {
     Column(Modifier.fillMaxSize().background(Color(0xFFE30613))) {
         HeaderApp(onAction = onLogout)
         
@@ -614,27 +627,56 @@ fun AdminHomeScreen(onList: () -> Unit, onUnidades: () -> Unit, onFuerzaActiva: 
                 AdminMenuButton("VER FUERZA ACTIVA", Icons.Default.Person, onFuerzaActiva)
                 AdminMenuButton("VER UNIDADES", Icons.Default.LocalShipping, onUnidades)
 
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp).clickable { onList() },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE30613))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "ÚLTIMOS CONTROLES",
-                            color = Color.White,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 20.sp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text("Toque para ver registros históricos", color = Color.White, fontSize = 12.sp)
+                Text(
+                    "ÚLTIMOS 3 CONTROLES",
+                    color = Color(0xFFE30613),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp
+                )
+                
+                Spacer(Modifier.height(12.dp))
+
+                if (emergencies.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                        Text("No hay registros recientes", color = Color.Gray, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        emergencies.forEach { emergency ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, RojoBomberos.copy(alpha = 0.3f)),
+                                colors = CardDefaults.cardColors(containerColor = Blanco)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.History, null, tint = RojoBomberos, modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = emergency.tipoServicio,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = Color.Black
+                                        )
+                                        Text(
+                                            text = "Unidad: ${emergency.unidad} - Paciente: ${emergency.nombrePaciente}",
+                                            fontSize = 12.sp,
+                                            color = Color.DarkGray
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+
+                Spacer(Modifier.weight(1f))
             }
         }
     }
