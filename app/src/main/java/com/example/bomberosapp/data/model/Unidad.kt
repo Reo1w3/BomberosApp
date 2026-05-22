@@ -13,7 +13,6 @@ data class Unidad(
     val fechaRegistro: String = "",
     val color: String = "",
     val estado: String = "",
-    val fotoBase64: String = "",
     val latitude: Double = 14.6349,
     val longitude: Double = -90.5069
 )
