@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "762131751015",
+    "project_id": "bomberosapp-74af6",
+    "storage_bucket": "bomberosapp-74af6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:762131751015:android:f78cdbab6aee7ed1c874c2",
+        "android_client_info": {
+          "package_name": "com.example.bomberosapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBv106hF5diNuVzei_aobZ6ieh9OVfZEEs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,48 +1,42 @@
 package com.example.bomberosapp.ui
 
-import android.graphics.BitmapFactory
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bomberosapp.HeaderApp
 import com.example.bomberosapp.data.model.Paramedico
-import com.example.bomberosapp.ui.components.CampoTextoEmergencia
-import com.example.bomberosapp.ui.components.DropdownFieldSimple
-import com.example.bomberosapp.ui.components.ExpandableSection
-import com.example.bomberosapp.ui.components.decodeBase64ToBitmap
-import com.example.bomberosapp.ui.components.encodeImageToBase64
-import com.example.bomberosapp.ui.theme.RojoBomberos
-import com.example.bomberosapp.ui.theme.Blanco
-import java.io.InputStream
 
 @Composable
 fun EditarParamedicoScreen(
@@ -50,191 +44,209 @@ fun EditarParamedicoScreen(
     onGuardarClick: (Paramedico) -> Unit,
     onVolverClick: () -> Unit
 ) {
-    var nombres by remember { mutableStateOf(paramedico.nombres) }
-    var apellidos by remember { mutableStateOf(paramedico.apellidos) }
-    var numeroIdentificacion by remember { mutableStateOf(paramedico.numeroIdentificacion) }
-    var codigoElemento by remember { mutableStateOf(paramedico.codigoElemento) }
-    var telefono by remember { mutableStateOf(paramedico.telefono) }
-    var direccion by remember { mutableStateOf(paramedico.direccion) }
     var especialidad by remember { mutableStateOf(paramedico.especialidad) }
     var certificacion by remember { mutableStateOf(paramedico.certificacion) }
-    var experiencia by remember { mutableStateOf(paramedico.experiencia) }
+    var numeroColegiado by remember { mutableStateOf(paramedico.numeroColegiado) }
+    var aniosExperiencia by remember { mutableStateOf(paramedico.aniosExperiencia) }
     var turno by remember { mutableStateOf(paramedico.turno) }
-    var contrasena by remember { mutableStateOf(paramedico.contrasena) }
-    var fotoBase64 by remember { mutableStateOf(paramedico.fotoBase64) }
 
-    var showPassword by remember { mutableStateOf(false) }
+    val especialidades = listOf(
+        "Atención prehospitalaria",
+        "Trauma",
+        "Soporte vital",
+        "Rescate",
+        "Urgencias"
+    )
 
-    val context = LocalContext.current
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(it)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            if (bitmap != null) {
-                fotoBase64 = encodeImageToBase64(bitmap)
-            }
-        }
-    }
+    val certificaciones = listOf(
+        "BLS",
+        "ACLS",
+        "PHTLS",
+        "PALS",
+        "TUM"
+    )
 
-    fun generarContrasena() {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
-        contrasena = (1..8)
-            .map { chars.random() }
-            .joinToString("")
-    }
+    val experiencias = listOf(
+        "0 a 1 año",
+        "1 a 3 años",
+        "3 a 5 años",
+        "5 a 10 años",
+        "Más de 10 años"
+    )
 
-    Column(modifier = Modifier.fillMaxSize().background(Blanco)) {
-        HeaderApp(title = "EDITAR PARAMÉDICO", onAction = onVolverClick)
+    val turnos = listOf(
+        "Matutino",
+        "Vespertino",
+        "Nocturno",
+        "24x24"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        HeaderApp(title = "EDITAR ELEMENTO", onLogout = onVolverClick)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .padding(bottom = 90.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Top
         ) {
-            Text(
-                text = "DATOS ACTUALES DEL PARAMÉDICO",
-                fontWeight = FontWeight.ExtraBold,
-                color = RojoBomberos,
-                fontSize = 18.sp
+            CampoDropdownEditarParamedico(
+                label = "ESPECIALIDAD",
+                valorSeleccionado = especialidad,
+                opciones = especialidades,
+                onSeleccionar = { especialidad = it }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .align(Alignment.CenterHorizontally)
-                    .clip(CircleShape)
-                    .background(Color.LightGray.copy(alpha = 0.3f))
-                    .border(3.dp, RojoBomberos, CircleShape)
-                    .clickable { imagePickerLauncher.launch("image/*") },
-                contentAlignment = Alignment.Center
-            ) {
-                if (fotoBase64.isNotEmpty()) {
-                    val bitmap = decodeBase64ToBitmap(fotoBase64)
-                    bitmap?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = "Foto de Perfil",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                } else {
-                    Icon(Icons.Default.Person, null, modifier = Modifier.size(65.dp), tint = Color.Gray)
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.padding(bottom = 8.dp).size(24.dp))
-                }
-            }
+            CampoDropdownEditarParamedico(
+                label = "CERTIFICACIÓN",
+                valorSeleccionado = certificacion,
+                opciones = certificaciones,
+                onSeleccionar = { certificacion = it }
+            )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            ExpandableSection(title = "INFORMACIÓN PERSONAL") {
-                CampoTextoEmergencia("Nombres", nombres, { nombres = it })
-                CampoTextoEmergencia("Apellidos", apellidos, { apellidos = it })
-                CampoTextoEmergencia("DPI / Identificación", numeroIdentificacion, { numeroIdentificacion = it })
-                CampoTextoEmergencia("Código de elemento", codigoElemento, { codigoElemento = it })
-                CampoTextoEmergencia("Teléfono", telefono, { telefono = it })
-                CampoTextoEmergencia("Dirección", direccion, { direccion = it })
-            }
+            CampoNumeroEditarParamedico(
+                label = "NÚMERO DE COLEGIADO",
+                value = numeroColegiado,
+                onValueChange = { numeroColegiado = it }
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            ExpandableSection(title = "PERFIL PROFESIONAL") {
-                CampoTextoEmergencia("Especialidad", especialidad, { especialidad = it })
-                CampoTextoEmergencia("Certificación", certificacion, { certificacion = it })
-                CampoTextoEmergencia("Años de experiencia", experiencia, { experiencia = it })
-                DropdownFieldSimple(
-                    options = listOf("Mañana", "Tarde", "Noche", "24 Horas"),
-                    selectedOption = turno,
-                    label = "Turno",
-                    onOptionSelected = { turno = it }
-                )
-            }
+            CampoDropdownEditarParamedico(
+                label = "AÑOS DE EXPERIENCIA",
+                valorSeleccionado = aniosExperiencia,
+                opciones = experiencias,
+                onSeleccionar = { aniosExperiencia = it }
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            ExpandableSection(title = "SEGURIDAD DE ACCESO") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = contrasena,
-                        onValueChange = { contrasena = it },
-                        label = { Text("Contraseña de Acceso") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(
-                                    if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    tint = RojoBomberos
-                                )
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = RojoBomberos,
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
-                    
-                    Button(
-                        onClick = { generarContrasena() },
-                        colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(56.dp)
-                    ) {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
+            CampoDropdownEditarParamedico(
+                label = "TURNO",
+                valorSeleccionado = turno,
+                opciones = turnos,
+                onSeleccionar = { turno = it }
+            )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    val paramedicoActualizado = paramedico.copy(
-                        nombres = nombres,
-                        apellidos = apellidos,
-                        numeroIdentificacion = numeroIdentificacion,
-                        codigoElemento = codigoElemento,
-                        telefono = telefono,
-                        direccion = direccion,
-                        especialidad = especialidad,
-                        certificacion = certificacion,
-                        experiencia = experiencia,
-                        turno = turno,
-                        contrasena = contrasena,
-                        fotoBase64 = fotoBase64
+                    onGuardarClick(
+                        paramedico.copy(
+                            especialidad = especialidad,
+                            certificacion = certificacion,
+                            numeroColegiado = numeroColegiado,
+                            aniosExperiencia = aniosExperiencia,
+                            turno = turno
+                        )
                     )
-                    onGuardarClick(paramedicoActualizado)
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RojoBomberos),
-                shape = RoundedCornerShape(25.dp)
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE30613))
             ) {
                 Text(
                     text = "GUARDAR CAMBIOS",
-                    color = Blanco,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
+    }
+}
+
+@Composable
+fun CampoDropdownEditarParamedico(
+    label: String,
+    valorSeleccionado: String,
+    opciones: List<String>,
+    onSeleccionar: (String) -> Unit
+) {
+    var expandido by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Box {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFFE0BABA), RoundedCornerShape(12.dp))
+                    .clickable { expandido = true }
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = if (valorSeleccionado.isEmpty()) "SELECCIONAR" else valorSeleccionado,
+                    color = if (valorSeleccionado.isEmpty()) Color.Gray else Color.Black,
+                    fontSize = 13.sp
+                )
+            }
+
+            DropdownMenu(
+                expanded = expandido,
+                onDismissRequest = { expandido = false }
+            ) {
+                opciones.forEach { opcion ->
+                    DropdownMenuItem(
+                        text = { Text(opcion) },
+                        onClick = {
+                            onSeleccionar(opcion)
+                            expandido = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CampoNumeroEditarParamedico(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFFE0BABA),
+                unfocusedBorderColor = Color(0xFFE0BABA),
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
     }
 }

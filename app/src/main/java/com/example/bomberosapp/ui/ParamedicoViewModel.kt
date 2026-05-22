@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ParamedicoViewModel : ViewModel() {
 
@@ -25,7 +26,6 @@ class ParamedicoViewModel : ViewModel() {
 
     fun startObserving() {
         isLoading = true
-
         viewModelScope.launch {
             getParamedicosFlow().collectLatest { list ->
                 paramedicos = list
@@ -34,40 +34,53 @@ class ParamedicoViewModel : ViewModel() {
         }
     }
 
-    fun eliminarParamedico(id: String, onSuccess: () -> Unit) {
-        db.collection("paramedico")
-            .document(id)
-            .delete()
-            .addOnSuccessListener {
-                onSuccess()
-            }
-    }
-
-    fun actualizarParamedico(paramedico: Paramedico, onSuccess: () -> Unit) {
-        db.collection("paramedico")
-            .document(paramedico.id)
-            .set(paramedico)
-            .addOnSuccessListener {
-                onSuccess()
-            }
-    }
-
     private fun getParamedicosFlow(): Flow<List<Paramedico>> = callbackFlow {
-        val registration = db.collection("paramedico")
+        val registration = db.collection("paramedicos")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     close(e)
                     return@addSnapshotListener
                 }
 
-                val list = snapshot?.documents?.mapNotNull { document ->
-                    val paramedico = document.toObject(Paramedico::class.java)
-                    paramedico?.copy(id = document.id)
+                val list = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Paramedico::class.java)?.copy(id = doc.id)
                 } ?: emptyList()
 
                 trySend(list)
             }
 
         awaitClose { registration.remove() }
+    }
+
+    fun actualizarParamedico(paramedico: Paramedico, onSuccess: () -> Unit) {
+        if (paramedico.id.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                db.collection("paramedicos")
+                    .document(paramedico.id)
+                    .set(paramedico)
+                    .await()
+
+                onSuccess()
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    fun eliminarParamedico(id: String, onSuccess: () -> Unit) {
+        if (id.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                db.collection("paramedicos")
+                    .document(id)
+                    .delete()
+                    .await()
+
+                onSuccess()
+            } catch (e: Exception) {
+            }
+        }
     }
 }
