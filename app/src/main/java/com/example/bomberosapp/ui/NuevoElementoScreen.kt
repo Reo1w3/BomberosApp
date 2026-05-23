@@ -461,7 +461,7 @@ fun NuevoElementoScreen(
                     shape = RoundedCornerShape(25.dp),
                     enabled = isFormValid
                 ) {
-                    Text("CONTINUAR", color = Blanco, fontWeight = FontWeight.Bold)
+                    Text("GUARDAR", color = Blanco, fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

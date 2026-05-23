@@ -10,6 +10,13 @@ import com.example.bomberosapp.data.model.UserRole
 import com.example.bomberosapp.data.repository.UserRepository
 import kotlinx.coroutines.launch
 
+sealed class LoginUIState {
+    object Idle : LoginUIState()
+    object Loading : LoginUIState()
+    data class Success(val role: UserRole) : LoginUIState()
+    data class Error(val message: String) : LoginUIState()
+}
+
 class LoginViewModel(
     private val repository: UserRepository = UserRepository(),
     private val prefs: SharedPreferences? = null
@@ -65,11 +72,8 @@ class LoginViewModel(
         prefs?.edit()?.remove("user_role")?.apply()
         loginState = LoginUIState.Idle
     }
-}
 
-sealed class LoginUIState {
-    object Idle : LoginUIState()
-    object Loading : LoginUIState()
-    data class Success(val role: UserRole) : LoginUIState()
-    data class Error(val message: String) : LoginUIState()
+    fun resetState() {
+        loginState = LoginUIState.Idle
+    }
 }
