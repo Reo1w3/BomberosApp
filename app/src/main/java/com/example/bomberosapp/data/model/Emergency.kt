@@ -81,3 +81,4 @@ data class Emergency(
     // Validación y Metadatos
     val timestamp: Long = System.currentTimeMillis()
 )
+
